@@ -139,15 +139,15 @@ Key Components
 - Management interface for Kong
 - Used internally by Auth Service
 
-Next Steps
-----------
+Quick Start Next Steps
+---------------------
 
 Now that you have Kong Auth Service running, you can:
 
 1. **Read the Concepts**: Understand :doc:`../concepts/jwt-authentication` and :doc:`../concepts/kong-gateway`
 2. **Explore the API**: Check out :doc:`../api/endpoints` for all available endpoints
-3. **Customize Configuration**: Learn about :doc:`configuration` options
-4. **Deploy to Production**: Follow :doc:`../deployment/production` guide
+3. **Customize Configuration**: Learn about configuration options
+4. **Deploy to Production**: Follow the deployment guide
 
 Troubleshooting
 --------------
@@ -177,8 +177,8 @@ Need Help?
 
 If you encounter issues:
 
-1. Check the :doc:`../troubleshooting` guide
-2. Review the :doc:`../faq` for common questions
+1. Check the FAQ section for common questions
+2. Review the FAQ for common questions
 3. Check service logs: `docker-compose logs <service-name>`
 4. Verify your setup matches the prerequisites
 

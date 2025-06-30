@@ -63,36 +63,40 @@ Detailed Token Generation Process
 Let's break down exactly how we generate a JWT token in our system:
 
 1. **Consumer Creation**
-   ```python
-   # When a user is created, we:
-   consumer_data = {
-       "username": "john_doe",
-       "custom_id": "optional-custom-id"
-   }
-   ```
+
+   .. code-block:: python
+
+      # When a user is created, we:
+      consumer_data = {
+          "username": "john_doe",
+          "custom_id": "optional-custom-id"
+      }
 
 2. **Secret Generation**
-   ```python
-   # We generate a random secret for this user
-   secret = secrets.token_urlsafe(32)  # Creates a 32-byte random string
-   secret_base64 = base64.b64encode(secret.encode()).decode()
-   ```
+
+   .. code-block:: python
+
+      # We generate a random secret for this user
+      secret = secrets.token_urlsafe(32)  # Creates a 32-byte random string
+      secret_base64 = base64.b64encode(secret.encode()).decode()
 
 3. **JWT Payload Creation**
-   ```python
-   # We create the token payload with user information
-   payload = {
-       "iss": "john_doe",           # Issuer (who created the token)
-       "exp": 1782791956,           # Expiration time (when token expires)
-       "iat": 1751255956            # Issued at (when token was created)
-   }
-   ```
+
+   .. code-block:: python
+
+      # We create the token payload with user information
+      payload = {
+          "iss": "john_doe",           # Issuer (who created the token)
+          "exp": 1782791956,           # Expiration time (when token expires)
+          "iat": 1751255956            # Issued at (when token was created)
+      }
 
 4. **Token Signing**
-   ```python
-   # We sign the token with the user's secret
-   token = jwt.encode(payload, secret, algorithm="HS256")
-   ```
+
+   .. code-block:: python
+
+      # We sign the token with the user's secret
+      token = jwt.encode(payload, secret, algorithm="HS256")
 
 What Each Field Means
 ^^^^^^^^^^^^^^^^^^^^

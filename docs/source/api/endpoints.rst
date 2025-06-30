@@ -37,6 +37,7 @@ Creates a new user (consumer) in Kong and generates a JWT token.
 **Endpoint**: `POST /create-consumer`
 
 **Request Body**:
+
 .. code-block:: json
 
    {
@@ -45,6 +46,7 @@ Creates a new user (consumer) in Kong and generates a JWT token.
    }
 
 **Response**:
+
 .. code-block:: json
 
    {
@@ -55,6 +57,7 @@ Creates a new user (consumer) in Kong and generates a JWT token.
    }
 
 **Example**:
+
 .. code-block:: bash
 
    curl -X POST "http://localhost:8000/create-consumer" \
@@ -75,6 +78,7 @@ Generates a new JWT token for an existing consumer.
 **Endpoint**: `POST /generate-token`
 
 **Request Body**:
+
 .. code-block:: json
 
    {
@@ -82,6 +86,7 @@ Generates a new JWT token for an existing consumer.
    }
 
 **Response**:
+
 .. code-block:: json
 
    {
@@ -90,6 +95,7 @@ Generates a new JWT token for an existing consumer.
    }
 
 **Example**:
+
 .. code-block:: bash
 
    curl -X POST "http://localhost:8000/generate-token" \
@@ -109,6 +115,7 @@ Lists all consumers in Kong.
 **Endpoint**: `GET /consumers`
 
 **Response**:
+
 .. code-block:: json
 
    {
@@ -122,6 +129,7 @@ Lists all consumers in Kong.
    }
 
 **Example**:
+
 .. code-block:: bash
 
    curl "http://localhost:8000/consumers"
@@ -138,6 +146,7 @@ Gets information about a specific consumer.
 **Endpoint**: `GET /consumers/{username}`
 
 **Response**:
+
 .. code-block:: json
 
    {
@@ -147,6 +156,7 @@ Gets information about a specific consumer.
    }
 
 **Example**:
+
 .. code-block:: bash
 
    curl "http://localhost:8000/consumers/john_doe"
@@ -164,6 +174,7 @@ Deletes a consumer and all associated credentials.
 **Endpoint**: `DELETE /consumers/{username}`
 
 **Response**:
+
 .. code-block:: json
 
    {
@@ -171,6 +182,7 @@ Deletes a consumer and all associated credentials.
    }
 
 **Example**:
+
 .. code-block:: bash
 
    curl -X DELETE "http://localhost:8000/consumers/john_doe"
@@ -188,6 +200,7 @@ Checks the health of the Auth Service.
 **Endpoint**: `GET /health`
 
 **Response**:
+
 .. code-block:: json
 
    {
@@ -197,6 +210,7 @@ Checks the health of the Auth Service.
    }
 
 **Example**:
+
 .. code-block:: bash
 
    curl "http://localhost:8000/health"
@@ -218,11 +232,13 @@ Gets the current status of the sample service.
 **Endpoint**: `GET /sample/status`
 
 **Headers Required**:
+
 .. code-block:: bash
 
    Authorization: Bearer YOUR_JWT_TOKEN
 
 **Response**:
+
 .. code-block:: json
 
    {
@@ -233,6 +249,7 @@ Gets the current status of the sample service.
    }
 
 **Example**:
+
 .. code-block:: bash
 
    curl -H "Authorization: Bearer YOUR_JWT_TOKEN" \
@@ -251,11 +268,13 @@ Gets information about the authenticated user.
 **Endpoint**: `GET /sample/user-info`
 
 **Headers Required**:
+
 .. code-block:: bash
 
    Authorization: Bearer YOUR_JWT_TOKEN
 
 **Response**:
+
 .. code-block:: json
 
    {
@@ -270,6 +289,7 @@ Gets information about the authenticated user.
    }
 
 **Example**:
+
 .. code-block:: bash
 
    curl -H "Authorization: Bearer YOUR_JWT_TOKEN" \
@@ -288,11 +308,13 @@ Gets sample data that requires authentication.
 **Endpoint**: `GET /sample/data`
 
 **Headers Required**:
+
 .. code-block:: bash
 
    Authorization: Bearer YOUR_JWT_TOKEN
 
 **Response**:
+
 .. code-block:: json
 
    {
@@ -310,6 +332,7 @@ Gets sample data that requires authentication.
    }
 
 **Example**:
+
 .. code-block:: bash
 
    curl -H "Authorization: Bearer YOUR_JWT_TOKEN" \
@@ -328,12 +351,14 @@ Creates a new data item (requires authentication).
 **Endpoint**: `POST /sample/data`
 
 **Headers Required**:
+
 .. code-block:: bash
 
    Authorization: Bearer YOUR_JWT_TOKEN
    Content-Type: application/json
 
 **Request Body**:
+
 .. code-block:: json
 
    {
@@ -342,6 +367,7 @@ Creates a new data item (requires authentication).
    }
 
 **Response**:
+
 .. code-block:: json
 
    {
@@ -353,6 +379,7 @@ Creates a new data item (requires authentication).
    }
 
 **Example**:
+
 .. code-block:: bash
 
    curl -X POST "http://localhost:8005/sample/data" \
@@ -379,6 +406,7 @@ Lists all services configured in Kong.
 **Endpoint**: `GET /services`
 
 **Example**:
+
 .. code-block:: bash
 
    curl "http://localhost:8006/services"
@@ -391,18 +419,20 @@ Lists all routes configured in Kong.
 **Endpoint**: `GET /routes`
 
 **Example**:
+
 .. code-block:: bash
 
    curl "http://localhost:8006/routes"
 
-List Consumers
-^^^^^^^^^^^^^
+Kong Admin List Consumers
+^^^^^^^^^^^^^^^^^^^^^^^^
 
 Lists all consumers in Kong.
 
 **Endpoint**: `GET /consumers`
 
 **Example**:
+
 .. code-block:: bash
 
    curl "http://localhost:8006/consumers"
@@ -415,6 +445,7 @@ Lists all plugins configured in Kong.
 **Endpoint**: `GET /plugins`
 
 **Example**:
+
 .. code-block:: bash
 
    curl "http://localhost:8006/plugins"
@@ -503,5 +534,5 @@ Now that you understand the API endpoints:
 
 1. **Try the Examples**: Use the provided examples to test the API
 2. **Read the Concepts**: Understand :doc:`../concepts/jwt-authentication` and :doc:`../concepts/kong-gateway`
-3. **Explore Configuration**: Learn about :doc:`../guides/configuration` options
+3. **Explore Configuration**: Learn about configuration options
 4. **Build Your Application**: Integrate these endpoints into your application 

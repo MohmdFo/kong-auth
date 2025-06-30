@@ -379,15 +379,15 @@ Benefits of This Architecture
 - Testing tools included
 - Docker-ready deployment
 
-Next Steps
-----------
+Architecture Next Steps
+----------------------
 
 Now that you understand the complete architecture, you can:
 
 1. **Start Building**: Follow the :doc:`../guides/quick-start` guide
-2. **Configure Your System**: Learn about :doc:`../guides/configuration`
-3. **Test Your Setup**: Use the :doc:`../guides/testing` procedures
-4. **Deploy to Production**: Follow the :doc:`../deployment/production` guide
+2. **Configure Your System**: Learn about configuration options
+3. **Test Your Setup**: Use the testing procedures
+4. **Deploy to Production**: Follow the deployment guide
 5. **Monitor Your System**: Set up monitoring and alerting
 
 The architecture is designed to be:

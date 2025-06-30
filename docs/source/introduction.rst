@@ -47,38 +47,33 @@ Who This Documentation Is For
 - Follow the step-by-step tutorials
 - Build confidence with hands-on examples
 
-Key Features
-------------
+Documentation Key Features
+-------------------------
 
-**🔐 Secure Authentication**
-- JWT-based authentication with automatic token generation
-- Digital signatures prevent token forgery
-- Automatic token expiration for security
+This documentation covers every aspect of Kong Auth Service:
 
-**🚀 Easy Integration**
-- Simple REST API for user management
-- Standard JWT tokens work with any client
-- Comprehensive examples and documentation
+- **For Beginners**: Start with concepts and quick start guide
+- **For Developers**: API reference and integration examples
+- **For DevOps**: Deployment and configuration guides
+- **For Business Users**: Architecture overview and security explanations
 
-**🛡️ Kong Gateway Integration**
-- Centralized security at the gateway level
-- No need to add authentication to each service
-- Consistent security policies across all APIs
+### Non-Technical Explanations
 
-**📦 Docker Ready**
-- Complete containerization with Docker Compose
-- Easy development and production deployment
-- Consistent environments across different systems
+Even non-developers can understand the system through:
 
-**📊 Monitoring & Observability**
-- Health checks for all services
-- Structured logging for debugging
-- Performance metrics and monitoring
+- **Real-world analogies**: Building security, concert tickets, passports
+- **Visual diagrams**: Architecture and flow charts
+- **Step-by-step guides**: Clear, actionable instructions
+- **Plain language**: Avoiding unnecessary technical jargon
 
-**🔄 Scalable Architecture**
-- Horizontal scaling support
-- Load balancing capabilities
-- High availability design
+### Practical Examples
+
+Every concept includes practical examples:
+
+- **curl commands**: For testing and integration
+- **Code snippets**: Python, JavaScript, and other languages
+- **Configuration files**: Docker, environment variables
+- **Troubleshooting scenarios**: Common issues and solutions
 
 Getting Started
 --------------
@@ -141,25 +136,20 @@ This documentation is organized into several sections:
 - Detailed explanations with real-world analogies
 - Visual diagrams and flow charts
 
-**Guides** (:doc:`guides/quick-start`, :doc:`guides/installation`, :doc:`guides/configuration`)
+**Guides** (:doc:`guides/quick-start`)
 - Step-by-step instructions
 - Practical examples and use cases
 - Troubleshooting tips
 
-**API Reference** (:doc:`api/endpoints`, :doc:`api/examples`)
+**API Reference** (:doc:`api/endpoints`)
 - Complete API documentation
 - Request and response examples
 - Error codes and messages
 
-**Deployment** (:doc:`deployment/production`, :doc:`deployment/ci-cd`)
-- Production deployment guides
-- CI/CD pipeline setup
-- Monitoring and maintenance
-
-**Troubleshooting** (:doc:`troubleshooting`, :doc:`faq`)
-- Common issues and solutions
-- Debugging techniques
-- Frequently asked questions
+**FAQ** (:doc:`faq`)
+- Common questions and answers
+- Troubleshooting guidance
+- Best practices
 
 How to Use This Documentation
 ----------------------------
@@ -168,25 +158,25 @@ How to Use This Documentation
 1. Start with :doc:`concepts/jwt-authentication` to understand the basics
 2. Follow the :doc:`guides/quick-start` to get hands-on experience
 3. Read :doc:`concepts/architecture` to understand the big picture
-4. Use the :doc:`api/examples` to see practical usage
+4. Use the :doc:`api/endpoints` to see practical usage
 
 **For Developers**
 1. Skip to :doc:`guides/quick-start` to get started quickly
 2. Review :doc:`api/endpoints` for API reference
-3. Check :doc:`guides/configuration` for customization options
-4. Use :doc:`deployment/production` for production deployment
+3. Check configuration options for customization
+4. Use deployment guides for production deployment
 
 **For DevOps Engineers**
 1. Start with :doc:`concepts/architecture` to understand the system
-2. Follow :doc:`guides/installation` for setup instructions
-3. Review :doc:`deployment/production` for production considerations
-4. Check :doc:`deployment/ci-cd` for automation
+2. Follow setup instructions for installation
+3. Review deployment considerations for production
+4. Check monitoring and maintenance procedures
 
 **For Business Users**
 1. Read :doc:`concepts/jwt-authentication` for security understanding
 2. Review :doc:`concepts/architecture` for system overview
 3. Check :doc:`faq` for common questions
-4. Use :doc:`troubleshooting` if you encounter issues
+4. Use troubleshooting guides if you encounter issues
 
 Contributing to Documentation
 ----------------------------
@@ -229,7 +219,7 @@ Support and Community
 
 **Getting Help**
 - Check the :doc:`faq` for common questions
-- Review :doc:`troubleshooting` for known issues
+- Review troubleshooting guides for known issues
 - Search the documentation for specific topics
 
 **Reporting Issues**
@@ -247,16 +237,16 @@ Support and Community
 - Share your experiences and use cases
 - Help other users with their questions
 
-Next Steps
-----------
+Introduction Next Steps
+----------------------
 
 Ready to get started? Here's what we recommend:
 
 1. **Read the Concepts**: Start with :doc:`concepts/jwt-authentication` to understand JWT tokens
 2. **Follow the Quick Start**: Use :doc:`guides/quick-start` to get hands-on experience
 3. **Explore the Architecture**: Read :doc:`concepts/architecture` to understand the system design
-4. **Try the Examples**: Use :doc:`api/examples` to see practical usage
-5. **Deploy to Production**: Follow :doc:`deployment/production` when ready
+4. **Try the Examples**: Use :doc:`api/endpoints` to see practical usage
+5. **Deploy to Production**: Follow deployment guides when ready
 
 The documentation is designed to be comprehensive yet accessible. Whether you're a complete beginner or an experienced developer, you'll find the information you need to successfully use Kong Auth Service.
 

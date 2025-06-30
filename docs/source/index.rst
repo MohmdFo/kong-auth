@@ -10,15 +10,7 @@ Welcome to Kong Auth Service Documentation
    concepts/kong-gateway
    concepts/architecture
    guides/quick-start
-   guides/installation
-   guides/configuration
-   guides/docker-setup
-   guides/testing
    api/endpoints
-   api/examples
-   deployment/production
-   deployment/ci-cd
-   troubleshooting
    faq
 
 .. image:: _static/images/architecture-overview.png
@@ -50,7 +42,7 @@ Who is this for?
 * **Anyone** who wants to learn about modern API security
 
 Quick Start
------------
+----------
 
 .. code-block:: bash
 

@@ -157,8 +157,8 @@ How JWT Plugin Validation Works
 6. **Expiration Check**: Kong checks if the token has expired
 7. **Access Decision**: If all checks pass, request proceeds; otherwise, blocked
 
-Real-World Analogy
-^^^^^^^^^^^^^^^^^^
+JWT Plugin Real-World Analogy
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Think of the JWT Plugin like a **high-tech security scanner**:
 
@@ -245,8 +245,8 @@ How CORS Plugin Works
 3. **Actual Request**: If preflight succeeds, browser sends the actual request
 4. **Response Headers**: Kong adds CORS headers to the response
 
-Real-World Analogy
-^^^^^^^^^^^^^^^^^^
+CORS Plugin Real-World Analogy
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Think of CORS like **international travel rules**:
 
@@ -349,10 +349,10 @@ Troubleshooting Common Issues
 - Verify issuer (iss) claim
 - Ensure base64 encoding is correct
 
-Next Steps
-----------
+Kong Next Steps
+--------------
 
 Now that you understand Kong Gateway and its plugins, learn about:
 - :doc:`../concepts/architecture` - How everything works together
-- :doc:`../guides/configuration` - How to configure the system
+- :doc:`../guides/quick-start` - How to get started
 - :doc:`../api/endpoints` - Available API endpoints 
