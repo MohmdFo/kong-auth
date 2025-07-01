@@ -4,10 +4,15 @@ FROM proxy.ai-lab.ir/python:3.13-slim
 # Set working directory
 WORKDIR /app
 
-# Install system dependencies
-RUN apt-get update && apt-get install -y \
-    curl \
+
+
+# Configure APT to use your Nexus repo and Install system dependencies
+
+RUN echo "deb [trusted=yes] https://proxy.ai-lab.ir/repository/ir-apt-bookworm/ bookworm main" > /etc/apt/sources.list \
+    && apt-get update \
+    && apt-get install -y curl \
     && rm -rf /var/lib/apt/lists/*
+
 
 # Install Poetry
 RUN pip install poetry
