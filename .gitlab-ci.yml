@@ -19,9 +19,9 @@ default:
       }
       EOF
 
-variables:
-  DOCKER_TLS_CERTDIR: ""
-  DOCKER_HOST: tcp://docker:2375
+# variables:
+#   DOCKER_TLS_CERTDIR: ""
+  # DOCKER_HOST: tcp://docker:2375
 
 stages:
   - build
