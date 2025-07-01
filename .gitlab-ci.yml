@@ -1,9 +1,11 @@
 default:
-  image: docker:25.0
+  image: proxy.ai-lab.ir/docker:25.0
   services:
     - name: docker:dind
-      alias: docker
-      command: ["--tls=false"]
+      command:
+        - --tls=false
+        - --registry-mirror=https://proxy.ai-lab.ir
+        - --insecure-registry=proxy.ai-lab.ir
   before_script:
     - mkdir -p ~/.docker
     - |
