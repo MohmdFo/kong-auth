@@ -1,6 +1,9 @@
 # Use Python 3.13 slim image
 FROM python:3.13-slim
 
+RUN echo "deb https://mirror.mobinhost.com/debian bookworm main contrib non-free" > /etc/apt/sources.list
+RUN echo "deb-src https://mirror.mobinhost.com/debian bookworm main contrib non-free" >> /etc/apt/sources.list
+
 # Set working directory
 WORKDIR /app
 
