@@ -1,23 +1,35 @@
 default:
-  image: docker:25.0
+  image: proxy.ai-lab.ir/docker
   services:
     - name: docker:dind
-      command: ['--tls=false']
-  # before_script:
-  #   - docker info
+      alias: docker
+      command: ["--tls=false"]
+
 variables:
-  DOCKER_TLS_CERTDIR: ''
+  DOCKER_TLS_CERTDIR: ""
   DOCKER_HOST: tcp://docker:2375
+  DOCKER_IMAGE: $NEXUS_URL/kong/$CI_PROJECT_NAME:$CI_COMMIT_TAG
+
+
 
 stages:
   - build
+  - update-manifest
 
-build-docker-image:
+
+
+build-image:
   stage: build
+  before_script:
+    - echo "192.168.244.150 proxy.ai-lab.ir" >> /etc/hosts
+    - docker login -u "$NEXUS_USERNAME" -p "$NEXUS_PASSWORD" $NEXUS_URL
   script:
-    - echo $CI_REGISTRY
-    - docker build -t $CI_REGISTRY/$CI_PROJECT_NAMESPACE/$CI_PROJECT_NAME:$CI_COMMIT_TAG .
-    - echo "$CI_REGISTRY_PASSWORD" | docker login $CI_REGISTRY -u $CI_REGISTRY_USER --password-stdin
-    - docker image push $CI_REGISTRY/$CI_PROJECT_NAMESPACE/$CI_PROJECT_NAME:$CI_COMMIT_TAG
-  only:
-    - /^v[0-9]+(\.[0-9]+){0,2}(-rc\.[0-9]+)?$/
+    - echo "Building image:" "$DOCKER_IMAGE"
+    - docker build -f Dockerfile.Deploy -t $DOCKER_IMAGE .
+    - echo "Push image:"
+    - docker push $DOCKER_IMAGE
+  tags:
+    - k8s-runner
+  rules:
+    - if: '$CI_COMMIT_TAG =~ /^v[0-9]+(?:\.[0-9]+)+-rc\.[0-9]/'
+

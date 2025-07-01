@@ -1,0 +1,26 @@
+default:
+  image: docker:25.0
+  services:
+    - name: docker:dind
+      command: ['--tls=false']
+  # before_script:
+  #   - docker info
+variables:
+  DOCKER_TLS_CERTDIR: ''
+  DOCKER_HOST: tcp://docker:2375
+
+stages:
+  - build
+
+build-docker-image:
+  stage: build
+  script:
+    - echo $CI_REGISTRY
+    - docker build -t $CI_REGISTRY/$CI_PROJECT_NAMESPACE/$CI_PROJECT_NAME:$CI_COMMIT_TAG .
+    - echo "$CI_REGISTRY_PASSWORD" | docker login $CI_REGISTRY -u $CI_REGISTRY_USER --password-stdin
+    - docker image push $CI_REGISTRY/$CI_PROJECT_NAMESPACE/$CI_PROJECT_NAME:$CI_COMMIT_TAG
+  only:
+    - /^v[0-9]+(\.[0-9]+){0,2}(-rc\.[0-9]+)?$/
+
+
+    
