@@ -1,0 +1,24 @@
+# Kong Dashboard Configuration
+# This file configures the Kong Dashboard
+
+# Kong Admin API URL
+kong_admin_url: http://kong:8001
+
+# Kong Dashboard configuration
+server:
+  port: 8080
+  host: 0.0.0.0
+
+# Authentication (optional - for production use)
+auth:
+  # Basic authentication
+  basic_auth:
+    enabled: false
+    username: admin
+    password: admin
+
+# CORS settings
+cors:
+  enabled: true
+  origin: "*"
+  credentials: true 
