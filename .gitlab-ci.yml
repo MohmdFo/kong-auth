@@ -27,8 +27,6 @@ build-image:
     - docker build -f Dockerfile.Deploy -t $DOCKER_IMAGE .
     - echo "Push image:"
     - docker push $DOCKER_IMAGE
-  tags:
-    - k8s-runner
   only:
     - /^v[0-9]+(\.[0-9]+){0,2}(-rc\.[0-9]+)?$/
 
