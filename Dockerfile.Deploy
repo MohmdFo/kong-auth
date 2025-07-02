@@ -16,7 +16,10 @@ RUN rm /etc/apt/sources.list.d/debian.sources \
 
 
 # Install Poetry
-RUN pip install poetry
+RUN pip config --user set global.index https://proxy.ai-lab.ir/repository/pypi-proxy/simple \
+    && pip config --user set global.index-url https://proxy.ai-lab.ir/repository/pypi-proxy/simple \
+    && pip config --user set global.trusted-host proxy.ai-lab.ir/repository/pypi-proxy \
+    && pip install poetry
 
 # Copy poetry files
 COPY pyproject.toml poetry.lock* ./
