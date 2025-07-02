@@ -17,7 +17,7 @@ SAMPLE_SERVICE_URL = os.getenv("SAMPLE_SERVICE_URL", "http://localhost:8001")
 class KongSetup:
     def __init__(self, admin_url: str):
         self.admin_url = admin_url.rstrip('/')
-        
+
     async def create_service(self, name: str, url: str) -> Dict[str, Any]:
         """Create a service in Kong"""
         async with httpx.AsyncClient() as client:
@@ -47,7 +47,7 @@ class KongSetup:
                 else:
                     print(f"❌ Failed to create service '{name}': {e.response.text}")
                     raise
-    
+
     async def create_route(self, service_name: str, name: str, paths: list, methods: list = None) -> Dict[str, Any]:
         """Create a route in Kong"""
         async with httpx.AsyncClient() as client:
@@ -80,7 +80,7 @@ class KongSetup:
                 else:
                     print(f"❌ Failed to create route '{name}': {e.response.text}")
                     raise
-    
+
     async def enable_jwt_plugin(self, service_name: str) -> Dict[str, Any]:
         """Enable JWT plugin on a service"""
         async with httpx.AsyncClient() as client:
@@ -115,7 +115,7 @@ class KongSetup:
                 else:
                     print(f"❌ Failed to enable JWT plugin: {e.response.text}")
                     raise
-    
+
     async def enable_cors_plugin(self, service_name: str) -> Dict[str, Any]:
         """Enable CORS plugin on a service"""
         async with httpx.AsyncClient() as client:
@@ -148,7 +148,7 @@ class KongSetup:
                 else:
                     print(f"❌ Failed to enable CORS plugin: {e.response.text}")
                     raise
-    
+
     async def setup_sample_service(self):
         """Set up the complete sample service configuration"""
         print("🚀 Setting up Kong sample service...")
@@ -212,7 +212,7 @@ class KongSetup:
         except Exception as e:
             print(f"❌ Setup failed: {e}")
             raise
-    
+
     async def cleanup(self):
         """Clean up Kong configuration"""
         print("🧹 Cleaning up Kong configuration...")
@@ -253,15 +253,15 @@ async def main():
     parser.add_argument("--cleanup", action="store_true", help="Clean up Kong configuration")
     parser.add_argument("--admin-url", default=KONG_ADMIN_URL, help="Kong Admin URL")
     parser.add_argument("--service-url", default=SAMPLE_SERVICE_URL, help="Sample service URL")
-    
+
     args = parser.parse_args()
-    
+
     # Update environment variables
     os.environ["KONG_ADMIN_URL"] = args.admin_url
     os.environ["SAMPLE_SERVICE_URL"] = args.service_url
-    
+
     kong_setup = KongSetup(args.admin_url)
-    
+
     if args.cleanup:
         await kong_setup.cleanup()
     else:

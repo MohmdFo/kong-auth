@@ -17,7 +17,7 @@ class ServiceManager:
     def __init__(self):
         self.processes = []
         self.running = True
-        
+
     def start_auth_service(self):
         """Start the FastAPI auth service"""
         print("🚀 Starting Auth Service...")
@@ -67,7 +67,7 @@ class ServiceManager:
                 stderr=asyncio.subprocess.PIPE
             )
             stdout, stderr = await process.communicate()
-            
+
             if process.returncode == 0:
                 print("✅ Kong setup completed")
                 return True
@@ -77,13 +77,13 @@ class ServiceManager:
         except Exception as e:
             print(f"❌ Failed to setup Kong: {e}")
             return False
-    
+
     async def wait_for_services(self):
         """Wait for services to be ready"""
         print("⏳ Waiting for services to be ready...")
-        
+
         import httpx
-        
+
         # Wait for auth service
         for i in range(30):  # Wait up to 30 seconds
             try:
@@ -98,7 +98,7 @@ class ServiceManager:
         else:
             print("❌ Auth Service failed to start")
             return False
-        
+
         # Wait for sample service
         for i in range(30):  # Wait up to 30 seconds
             try:
@@ -113,14 +113,14 @@ class ServiceManager:
         else:
             print("❌ Sample Service failed to start")
             return False
-        
+
         return True
-    
+
     def stop_all(self):
         """Stop all running processes"""
         print("\n🛑 Stopping all services...")
         self.running = False
-        
+
         for name, process in self.processes:
             try:
                 print(f"Stopping {name}...")
@@ -132,13 +132,13 @@ class ServiceManager:
                 process.kill()
             except Exception as e:
                 print(f"❌ Error stopping {name}: {e}")
-    
+
     def signal_handler(self, signum, frame):
         """Handle shutdown signals"""
         print(f"\n📡 Received signal {signum}, shutting down...")
         self.stop_all()
         sys.exit(0)
-    
+
     async def run(self):
         """Run all services"""
         print("🎯 Starting Kong Auth Test Environment")
@@ -147,23 +147,23 @@ class ServiceManager:
         # Set up signal handlers
         signal.signal(signal.SIGINT, self.signal_handler)
         signal.signal(signal.SIGTERM, self.signal_handler)
-        
+
         try:
             # Start services
             if not self.start_auth_service():
                 return False
-            
+
             if not self.start_sample_service():
                 return False
-            
+
             # Wait for services to be ready
             if not await self.wait_for_services():
                 return False
-            
+
             # Set up Kong
             if not await self.setup_kong():
                 return False
-            
+
             print("\n" + "=" * 50)
             print("✅ All services are running!")
             print("\n📋 Available endpoints:")
@@ -182,18 +182,18 @@ class ServiceManager:
             print("  2. Use token: curl -H 'Authorization: Bearer YOUR_TOKEN' http://localhost:8000/sample/status")
             print("\nPress Ctrl+C to stop all services")
             print("=" * 50)
-            
+
             # Keep running until interrupted
             while self.running:
                 await asyncio.sleep(1)
-                
+
         except KeyboardInterrupt:
             print("\n📡 Interrupted by user")
         except Exception as e:
             print(f"\n❌ Error: {e}")
         finally:
             self.stop_all()
-        
+
         return True
 
 async def main():
