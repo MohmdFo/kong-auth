@@ -20,7 +20,7 @@ stages:
 build-image:
   stage: build
   before_script:
-    - echo "192.168.244.150 proxy.ai-lab.ir" >> /etc/hosts
+    # - echo "192.168.244.150 proxy.ai-lab.ir" >> /etc/hosts
     - docker login -u "$NEXUS_USERNAME" -p "$NEXUS_PASSWORD" $NEXUS_URL
   script:
     - echo "Building image:" "$DOCKER_IMAGE"
