@@ -8,7 +8,16 @@ import httpx
 import asyncio
 import json
 import os
+import sys
+import logging
 from typing import Dict, Any
+
+# Add parent directory to path to import logging_config
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from app.logging_config import setup_logging
+
+# Setup logging
+logger = setup_logging()
 
 # Kong configuration
 KONG_ADMIN_URL = os.getenv("KONG_ADMIN_URL", "http://localhost:8006")
@@ -34,7 +43,7 @@ class KongSetup:
                 )
                 response.raise_for_status()
                 service = response.json()
-                print(f"✅ Service '{name}' created successfully")
+                logger.info(f"✅ Service '{name}' created successfully")
                 return service
             except httpx.HTTPStatusError as e:
                 if e.response.status_code == 409:
@@ -42,10 +51,10 @@ class KongSetup:
                     response = await client.get(f"{self.admin_url}/services/{name}")
                     response.raise_for_status()
                     service = response.json()
-                    print(f"ℹ️  Service '{name}' already exists")
+                    logger.info(f"ℹ️  Service '{name}' already exists")
                     return service
                 else:
-                    print(f"❌ Failed to create service '{name}': {e.response.text}")
+                    logger.error(f"❌ Failed to create service '{name}': {e.response.text}")
                     raise
 
     async def create_route(self, service_name: str, name: str, paths: list, methods: list = None) -> Dict[str, Any]:
@@ -67,7 +76,7 @@ class KongSetup:
                 )
                 response.raise_for_status()
                 route = response.json()
-                print(f"✅ Route '{name}' created successfully")
+                logger.info(f"✅ Route '{name}' created successfully")
                 return route
             except httpx.HTTPStatusError as e:
                 if e.response.status_code == 409:
@@ -75,10 +84,10 @@ class KongSetup:
                     response = await client.get(f"{self.admin_url}/routes/{name}")
                     response.raise_for_status()
                     route = response.json()
-                    print(f"ℹ️  Route '{name}' already exists")
+                    logger.info(f"ℹ️  Route '{name}' already exists")
                     return route
                 else:
-                    print(f"❌ Failed to create route '{name}': {e.response.text}")
+                    logger.error(f"❌ Failed to create route '{name}': {e.response.text}")
                     raise
 
     async def enable_jwt_plugin(self, service_name: str) -> Dict[str, Any]:
@@ -106,14 +115,14 @@ class KongSetup:
                 )
                 response.raise_for_status()
                 plugin = response.json()
-                print(f"✅ JWT plugin enabled on service '{service_name}'")
+                logger.info(f"✅ JWT plugin enabled on service '{service_name}'")
                 return plugin
             except httpx.HTTPStatusError as e:
                 if e.response.status_code == 409:
-                    print(f"ℹ️  JWT plugin already enabled on service '{service_name}'")
+                    logger.info(f"ℹ️  JWT plugin already enabled on service '{service_name}'")
                     return {"message": "Plugin already exists"}
                 else:
-                    print(f"❌ Failed to enable JWT plugin: {e.response.text}")
+                    logger.error(f"❌ Failed to enable JWT plugin: {e.response.text}")
                     raise
 
     async def enable_cors_plugin(self, service_name: str) -> Dict[str, Any]:
@@ -139,22 +148,22 @@ class KongSetup:
                 )
                 response.raise_for_status()
                 plugin = response.json()
-                print(f"✅ CORS plugin enabled on service '{service_name}'")
+                logger.info(f"✅ CORS plugin enabled on service '{service_name}'")
                 return plugin
             except httpx.HTTPStatusError as e:
                 if e.response.status_code == 409:
-                    print(f"ℹ️  CORS plugin already enabled on service '{service_name}'")
+                    logger.info(f"ℹ️  CORS plugin already enabled on service '{service_name}'")
                     return {"message": "Plugin already exists"}
                 else:
-                    print(f"❌ Failed to enable CORS plugin: {e.response.text}")
+                    logger.error(f"❌ Failed to enable CORS plugin: {e.response.text}")
                     raise
 
     async def setup_sample_service(self):
         """Set up the complete sample service configuration"""
-        print("🚀 Setting up Kong sample service...")
-        print(f"Kong Admin URL: {self.admin_url}")
-        print(f"Sample Service URL: {SAMPLE_SERVICE_URL}")
-        print("-" * 50)
+        logger.info("🚀 Setting up Kong sample service...")
+        logger.info(f"Kong Admin URL: {self.admin_url}")
+        logger.info(f"Sample Service URL: {SAMPLE_SERVICE_URL}")
+        logger.info("-" * 50)
         
         try:
             # Create service
@@ -194,15 +203,15 @@ class KongSetup:
             await self.enable_jwt_plugin("sample-service")
             await self.enable_cors_plugin("sample-service")
             
-            print("\n✅ Kong setup completed successfully!")
-            print("\n📋 Available endpoints:")
-            print(f"  Kong Gateway: http://localhost:8000")
-            print(f"  Protected endpoints:")
-            print(f"    GET/POST  http://localhost:8000/sample")
-            print(f"    GET/POST  http://localhost:8000/sample/api")
-            print(f"    GET       http://localhost:8000/sample/status")
-            print(f"\n🔐 All endpoints require JWT authentication")
-            print(f"📝 Use your auth service to get JWT tokens")
+            logger.info("✅ Kong setup completed successfully!")
+            logger.info("📋 Available endpoints:")
+            logger.info(f"  Kong Gateway: http://localhost:8000")
+            logger.info(f"  Protected endpoints:")
+            logger.info(f"    GET/POST  http://localhost:8000/sample")
+            logger.info(f"    GET/POST  http://localhost:8000/sample/api")
+            logger.info(f"    GET       http://localhost:8000/sample/status")
+            logger.info(f"🔐 All endpoints require JWT authentication")
+            logger.info(f"📝 Use your auth service to get JWT tokens")
             
             return {
                 "service": service,
@@ -210,12 +219,12 @@ class KongSetup:
             }
             
         except Exception as e:
-            print(f"❌ Setup failed: {e}")
+            logger.error(f"❌ Setup failed: {e}")
             raise
 
     async def cleanup(self):
         """Clean up Kong configuration"""
-        print("🧹 Cleaning up Kong configuration...")
+        logger.info("🧹 Cleaning up Kong configuration...")
         
         async with httpx.AsyncClient() as client:
             # Delete routes
@@ -228,22 +237,22 @@ class KongSetup:
             for route_name in routes_to_delete:
                 try:
                     await client.delete(f"{self.admin_url}/routes/{route_name}")
-                    print(f"✅ Deleted route '{route_name}'")
+                    logger.info(f"✅ Deleted route '{route_name}'")
                 except httpx.HTTPStatusError as e:
                     if e.response.status_code == 404:
-                        print(f"ℹ️  Route '{route_name}' not found")
+                        logger.info(f"ℹ️  Route '{route_name}' not found")
                     else:
-                        print(f"❌ Failed to delete route '{route_name}': {e.response.text}")
+                        logger.error(f"❌ Failed to delete route '{route_name}': {e.response.text}")
             
             # Delete service
             try:
                 await client.delete(f"{self.admin_url}/services/sample-service")
-                print("✅ Deleted service 'sample-service'")
+                logger.info("✅ Deleted service 'sample-service'")
             except httpx.HTTPStatusError as e:
                 if e.response.status_code == 404:
-                    print("ℹ️  Service 'sample-service' not found")
+                    logger.info("ℹ️  Service 'sample-service' not found")
                 else:
-                    print(f"❌ Failed to delete service: {e.response.text}")
+                    logger.error(f"❌ Failed to delete service: {e.response.text}")
 
 async def main():
     """Main function"""

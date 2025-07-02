@@ -7,7 +7,17 @@ This is a simple HTTP server that Kong will proxy requests to
 from http.server import HTTPServer, BaseHTTPRequestHandler
 import json
 import time
+import logging
+import sys
+import os
 from urllib.parse import urlparse, parse_qs
+
+# Add parent directory to path to import logging_config
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from app.logging_config import setup_logging
+
+# Setup logging
+logger = setup_logging()
 
 class SampleServiceHandler(BaseHTTPRequestHandler):
     def do_GET(self):
@@ -95,22 +105,22 @@ class SampleServiceHandler(BaseHTTPRequestHandler):
 
     def log_message(self, format, *args):
         """Custom logging to show requests"""
-        print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] {format % args}")
+        logger.info(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] {format % args}")
 
 def run_server(port=8001):
     """Run the sample service server"""
     server_address = ('', port)
     httpd = HTTPServer(server_address, SampleServiceHandler)
-    print(f"Sample service running on http://localhost:{port}")
-    print("Available endpoints:")
-    print(f"  GET  http://localhost:{port}/")
-    print(f"  GET  http://localhost:{port}/api/v1/status")
-    print(f"  POST http://localhost:{port}/api/v1/data")
-    print("Press Ctrl+C to stop")
+    logger.info(f"Sample service running on http://localhost:{port}")
+    logger.info("Available endpoints:")
+    logger.info(f"  GET  http://localhost:{port}/")
+    logger.info(f"  GET  http://localhost:{port}/api/v1/status")
+    logger.info(f"  POST http://localhost:{port}/api/v1/data")
+    logger.info("Press Ctrl+C to stop")
     try:
         httpd.serve_forever()
     except KeyboardInterrupt:
-        print("\nShutting down server...")
+        logger.info("Shutting down server...")
         httpd.server_close()
 
 if __name__ == "__main__":

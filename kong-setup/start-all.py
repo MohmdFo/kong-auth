@@ -11,7 +11,15 @@ import sys
 import os
 import signal
 import threading
+import logging
 from pathlib import Path
+
+# Add parent directory to path to import logging_config
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from app.logging_config import setup_logging
+
+# Setup logging
+logger = setup_logging()
 
 class ServiceManager:
     def __init__(self):
@@ -20,7 +28,7 @@ class ServiceManager:
 
     def start_auth_service(self):
         """Start the FastAPI auth service"""
-        print("🚀 Starting Auth Service...")
+        logger.info("🚀 Starting Auth Service...")
         try:
             # Change to parent directory to run the auth service
             parent_dir = Path(__file__).parent.parent
@@ -32,15 +40,15 @@ class ServiceManager:
                 text=True
             )
             self.processes.append(("Auth Service", process))
-            print("✅ Auth Service started")
+            logger.info("✅ Auth Service started")
             return True
         except Exception as e:
-            print(f"❌ Failed to start Auth Service: {e}")
+            logger.error(f"❌ Failed to start Auth Service: {e}")
             return False
     
     def start_sample_service(self):
         """Start the sample service"""
-        print("🚀 Starting Sample Service...")
+        logger.info("🚀 Starting Sample Service...")
         try:
             process = subprocess.Popen(
                 [sys.executable, "sample-service.py"],
@@ -50,15 +58,15 @@ class ServiceManager:
                 text=True
             )
             self.processes.append(("Sample Service", process))
-            print("✅ Sample Service started")
+            logger.info("✅ Sample Service started")
             return True
         except Exception as e:
-            print(f"❌ Failed to start Sample Service: {e}")
+            logger.error(f"❌ Failed to start Sample Service: {e}")
             return False
     
     async def setup_kong(self):
         """Set up Kong configuration"""
-        print("🚀 Setting up Kong...")
+        logger.info("🚀 Setting up Kong...")
         try:
             process = await asyncio.create_subprocess_exec(
                 sys.executable, "setup-kong.py",
@@ -69,18 +77,18 @@ class ServiceManager:
             stdout, stderr = await process.communicate()
 
             if process.returncode == 0:
-                print("✅ Kong setup completed")
+                logger.info("✅ Kong setup completed")
                 return True
             else:
-                print(f"❌ Kong setup failed: {stderr.decode()}")
+                logger.error(f"❌ Kong setup failed: {stderr.decode()}")
                 return False
         except Exception as e:
-            print(f"❌ Failed to setup Kong: {e}")
+            logger.error(f"❌ Failed to setup Kong: {e}")
             return False
 
     async def wait_for_services(self):
         """Wait for services to be ready"""
-        print("⏳ Waiting for services to be ready...")
+        logger.info("⏳ Waiting for services to be ready...")
 
         import httpx
 
@@ -90,13 +98,13 @@ class ServiceManager:
                 async with httpx.AsyncClient() as client:
                     response = await client.get("http://localhost:8000/", timeout=1.0)
                     if response.status_code == 200:
-                        print("✅ Auth Service is ready")
+                        logger.info("✅ Auth Service is ready")
                         break
             except:
                 pass
             await asyncio.sleep(1)
         else:
-            print("❌ Auth Service failed to start")
+            logger.error("❌ Auth Service failed to start")
             return False
 
         # Wait for sample service
@@ -105,44 +113,44 @@ class ServiceManager:
                 async with httpx.AsyncClient() as client:
                     response = await client.get("http://localhost:8001/", timeout=1.0)
                     if response.status_code == 200:
-                        print("✅ Sample Service is ready")
+                        logger.info("✅ Sample Service is ready")
                         break
             except:
                 pass
             await asyncio.sleep(1)
         else:
-            print("❌ Sample Service failed to start")
+            logger.error("❌ Sample Service failed to start")
             return False
 
         return True
 
     def stop_all(self):
         """Stop all running processes"""
-        print("\n🛑 Stopping all services...")
+        logger.info("🛑 Stopping all services...")
         self.running = False
 
         for name, process in self.processes:
             try:
-                print(f"Stopping {name}...")
+                logger.info(f"Stopping {name}...")
                 process.terminate()
                 process.wait(timeout=5)
-                print(f"✅ {name} stopped")
+                logger.info(f"✅ {name} stopped")
             except subprocess.TimeoutExpired:
-                print(f"⚠️  {name} didn't stop gracefully, killing...")
+                logger.warning(f"⚠️  {name} didn't stop gracefully, killing...")
                 process.kill()
             except Exception as e:
-                print(f"❌ Error stopping {name}: {e}")
+                logger.error(f"❌ Error stopping {name}: {e}")
 
     def signal_handler(self, signum, frame):
         """Handle shutdown signals"""
-        print(f"\n📡 Received signal {signum}, shutting down...")
+        logger.info(f"📡 Received signal {signum}, shutting down...")
         self.stop_all()
         sys.exit(0)
 
     async def run(self):
         """Run all services"""
-        print("🎯 Starting Kong Auth Test Environment")
-        print("=" * 50)
+        logger.info("🎯 Starting Kong Auth Test Environment")
+        logger.info("=" * 50)
         
         # Set up signal handlers
         signal.signal(signal.SIGINT, self.signal_handler)
@@ -164,33 +172,33 @@ class ServiceManager:
             if not await self.setup_kong():
                 return False
 
-            print("\n" + "=" * 50)
-            print("✅ All services are running!")
-            print("\n📋 Available endpoints:")
-            print("  Auth Service:     http://localhost:8000")
-            print("  Sample Service:   http://localhost:8001")
-            print("  Kong Gateway:     http://localhost:8000")
-            print("  Kong Admin:       http://localhost:8006")
-            print("\n🔐 Protected endpoints (require JWT):")
-            print("  GET/POST  http://localhost:8000/sample")
-            print("  GET/POST  http://localhost:8000/sample/api")
-            print("  GET       http://localhost:8000/sample/status")
-            print("\n🧪 Test the complete flow:")
-            print("  python test-complete-flow.py")
-            print("\n📝 Manual testing:")
-            print("  1. Create consumer: curl -X POST http://localhost:8000/create-consumer -H 'Content-Type: application/json' -d '{\"username\": \"testuser\"}'")
-            print("  2. Use token: curl -H 'Authorization: Bearer YOUR_TOKEN' http://localhost:8000/sample/status")
-            print("\nPress Ctrl+C to stop all services")
-            print("=" * 50)
+            logger.info("=" * 50)
+            logger.info("✅ All services are running!")
+            logger.info("📋 Available endpoints:")
+            logger.info("  Auth Service:     http://localhost:8000")
+            logger.info("  Sample Service:   http://localhost:8001")
+            logger.info("  Kong Gateway:     http://localhost:8000")
+            logger.info("  Kong Admin:       http://localhost:8006")
+            logger.info("🔐 Protected endpoints (require JWT):")
+            logger.info("  GET/POST  http://localhost:8000/sample")
+            logger.info("  GET/POST  http://localhost:8000/sample/api")
+            logger.info("  GET       http://localhost:8000/sample/status")
+            logger.info("🧪 Test the complete flow:")
+            logger.info("  python test-complete-flow.py")
+            logger.info("📝 Manual testing:")
+            logger.info("  1. Create consumer: curl -X POST http://localhost:8000/create-consumer -H 'Content-Type: application/json' -d '{\"username\": \"testuser\"}'")
+            logger.info("  2. Use token: curl -H 'Authorization: Bearer YOUR_TOKEN' http://localhost:8000/sample/status")
+            logger.info("Press Ctrl+C to stop all services")
+            logger.info("=" * 50)
 
             # Keep running until interrupted
             while self.running:
                 await asyncio.sleep(1)
 
         except KeyboardInterrupt:
-            print("\n📡 Interrupted by user")
+            logger.info("📡 Interrupted by user")
         except Exception as e:
-            print(f"\n❌ Error: {e}")
+            logger.error(f"❌ Error: {e}")
         finally:
             self.stop_all()
 
