@@ -1,12 +1,17 @@
 # Kong Auth Service
 
-A FastAPI application that creates Kong consumers and generates JWT tokens for authentication.
+A FastAPI application that creates Kong consumers, generates JWT tokens for authentication, and provides a comprehensive API for managing Kong services and routes.
 
 ## Features
 
 - Create Kong consumers with JWT credentials
 - Generate JWT tokens with configurable expiration
 - List and manage Kong consumers
+- **NEW**: Complete Kong service and route management API
+- **NEW**: Dynamic service creation and configuration
+- **NEW**: Plugin management (JWT, CORS, Rate Limiting, etc.)
+- **NEW**: Service health monitoring
+- **NEW**: Complete service setup with routes and plugins
 - Automatic handling of existing consumers
 - Complete Docker support with development and production configurations
 - Comprehensive testing and CI/CD pipeline
@@ -27,6 +32,16 @@ make quick-dev
 curl -X POST "http://localhost:8000/create-consumer" \
   -H "Content-Type: application/json" \
   -d '{"username": "myuser"}'
+
+# Create a Kong service and route
+curl -X POST "http://localhost:8000/kong/services" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "my-api",
+    "url": "http://localhost:3000",
+    "protocol": "http",
+    "tags": ["production"]
+  }'
 
 # Test authentication
 curl -H "Authorization: Bearer YOUR_JWT_TOKEN" \
@@ -149,7 +164,39 @@ The API will be available at `http://localhost:8000`
 
 ## API Endpoints
 
-### Create Consumer and Generate Token
+### Kong Management API (NEW!)
+
+The Kong Management API provides a complete REST interface for managing Kong services, routes, and plugins:
+
+#### Service Management
+- `POST /kong/services` - Create a new service
+- `GET /kong/services` - List all services
+- `GET /kong/services/{service_name}` - Get specific service
+- `PATCH /kong/services/{service_name}` - Update service
+- `DELETE /kong/services/{service_name}` - Delete service
+
+#### Route Management
+- `POST /kong/routes` - Create a new route
+- `GET /kong/routes` - List all routes
+- `GET /kong/routes/{route_name}` - Get specific route
+- `PATCH /kong/routes/{route_name}` - Update route
+- `DELETE /kong/routes/{route_name}` - Delete route
+
+#### Plugin Management
+- `POST /kong/services/{service_name}/plugins` - Enable plugin on service
+- `GET /kong/plugins` - List all plugins
+- `DELETE /kong/plugins/{plugin_id}` - Delete plugin
+
+#### Health and Monitoring
+- `GET /kong/services/{service_name}/health` - Get service health
+- `GET /kong/status` - Get Kong API status
+
+#### Complete Service Setup
+- `POST /kong/services/complete` - Setup complete service with routes and plugins
+
+📖 **See [Kong Management API Documentation](docs/kong-management-api.md) for complete details and examples.**
+
+### Consumer Management API
 ```http
 POST /create-consumer
 Content-Type: application/json
@@ -195,7 +242,68 @@ Make sure your Kong JWT plugin is configured with these settings:
 - **Maximum expiration**: `31536000`
 - **Header names**: `authorization`
 
-## Usage Example
+## Usage Examples
+
+### Kong Management API
+
+#### Create a Service with Routes and Plugins
+```bash
+# Create a complete service setup
+curl -X POST "http://localhost:8000/kong/services/complete" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "service": {
+      "name": "my-api",
+      "url": "http://localhost:3000",
+      "protocol": "http",
+      "tags": ["production"]
+    },
+    "routes": [
+      {
+        "name": "my-api-main",
+        "service_name": "my-api",
+        "paths": ["/api/v1"],
+        "methods": ["GET", "POST", "PUT", "DELETE"],
+        "strip_path": true
+      }
+    ],
+    "plugins": [
+      {
+        "name": "jwt",
+        "config": {
+          "uri_param_names": ["jwt"],
+          "key_claim_name": "iss",
+          "secret_is_base64": true,
+          "claims_to_verify": ["exp"],
+          "header_names": ["authorization"]
+        },
+        "enabled": true
+      },
+      {
+        "name": "cors",
+        "config": {
+          "origins": ["*"],
+          "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+          "headers": ["Content-Type", "Authorization"],
+          "credentials": true
+        },
+        "enabled": true
+      }
+    ]
+  }'
+```
+
+#### Check Service Health
+```bash
+curl "http://localhost:8000/kong/services/my-api/health"
+```
+
+#### List All Services
+```bash
+curl "http://localhost:8000/kong/services"
+```
+
+### Consumer Management API
 
 1. Create a consumer and get a JWT token:
 ```bash
@@ -217,6 +325,25 @@ Once the server is running, you can access:
 - ReDoc documentation: `http://localhost:8000/redoc`
 
 ## Testing
+
+### Kong Management API Tests
+
+Test the new Kong Management API functionality:
+
+```bash
+# Start Kong for testing (if not already running)
+./start-kong-for-testing.sh
+
+# Run comprehensive API tests
+python test_kong_api.py
+
+# Run example usage
+python example_kong_api_usage.py
+```
+
+**Note**: The Kong Management API requires Kong Gateway to be running. If tests fail with connection errors, ensure Kong is started first.
+
+### Consumer Management API Tests
 
 ```bash
 # Run all tests
@@ -254,6 +381,42 @@ The application handles common scenarios:
 - Kong Admin API errors
 - Invalid requests
 - Missing consumers
+- Kong connection issues (503 Service Unavailable)
+- Kong timeout issues (504 Gateway Timeout)
+
+## Troubleshooting
+
+### Kong Management API Issues
+
+**Connection Errors (503 Service Unavailable)**
+- Ensure Kong Gateway is running: `docker-compose -f kong/docker-compose.kong.yml up -d`
+- Check Kong Admin API: `curl http://localhost:8006/status`
+- Verify Kong Admin URL in environment: `KONG_ADMIN_URL=http://localhost:8006`
+
+**Timeout Errors (504 Gateway Timeout)**
+- Kong may be overloaded or slow to respond
+- Check Kong logs: `docker-compose -f kong/docker-compose.kong.yml logs`
+- Restart Kong if necessary
+
+**JSON Serialization Errors**
+- Fixed in latest version - ensure you're using the updated code
+- Check that URL fields are strings, not HttpUrl objects
+
+### Quick Fixes
+
+```bash
+# Start Kong for testing
+./start-kong-for-testing.sh
+
+# Check Kong status
+curl http://localhost:8006/status
+
+# View Kong logs
+docker-compose -f kong/docker-compose.kong.yml logs
+
+# Restart Kong
+docker-compose -f kong/docker-compose.kong.yml restart
+```
 
 ## Security Notes
 
