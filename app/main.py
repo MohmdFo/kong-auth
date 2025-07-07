@@ -9,10 +9,20 @@ import os
 from typing import Optional
 import logging
 
+# Import Kong management API
+from .kong_api import router as kong_router
+
 # Setup logging
 logger = logging.getLogger(__name__)
 
-app = FastAPI(title="Kong Auth Service", description="Service to create Kong consumers and generate JWT tokens")
+app = FastAPI(
+    title="Kong Auth Service", 
+    description="Service to create Kong consumers, generate JWT tokens, and manage Kong services and routes",
+    version="2.0.0"
+)
+
+# Include Kong management API
+app.include_router(kong_router)
 
 # Configuration
 KONG_ADMIN_URL = os.getenv("KONG_ADMIN_URL", "http://localhost:8006")
