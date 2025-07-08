@@ -11,6 +11,9 @@ Welcome to Kong Auth Service Documentation
    concepts/architecture
    guides/quick-start
    api/endpoints
+   kong-management-api
+   example_kong_api_usage
+   test_kong_api
    faq
 
 .. image:: _static/images/architecture-overview.png
@@ -28,6 +31,9 @@ Key Features
 * **JWT Token Generation**: Automatically creates secure JWT tokens for users
 * **Kong Integration**: Seamlessly works with Kong Gateway for API protection
 * **Consumer Management**: Easy user and consumer management
+* **Kong Management API**: Complete REST API for managing Kong services and routes
+* **Dynamic Service Management**: Create and configure services without direct Kong access
+* **Plugin Management**: Enable and configure Kong plugins through API
 * **Scalable Architecture**: Built for high-traffic applications
 * **Docker Ready**: Complete containerization support
 * **Comprehensive Testing**: Built-in testing and validation tools
