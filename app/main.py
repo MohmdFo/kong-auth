@@ -8,6 +8,11 @@ from datetime import datetime, timedelta
 import os
 from typing import Optional
 import logging
+import uuid
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 # Import Kong management API
 from .kong_api import router as kong_router
@@ -28,12 +33,17 @@ app.include_router(kong_router)
 KONG_ADMIN_URL = os.getenv("KONG_ADMIN_URL", "http://localhost:8006")
 JWT_EXPIRATION_SECONDS = int(os.getenv("JWT_EXPIRATION_SECONDS", "31536000"))
 
+NAMESPACE = uuid.UUID("6ba7b810-9dad-11d1-80b4-00c04fd430c8")  # DNS namespace
+
+def get_consumer_uuid(username: str) -> str:
+    return str(uuid.uuid5(NAMESPACE, username))
+
 class ConsumerRequest(BaseModel):
     username: str
-    custom_id: Optional[str] = None
 
 class TokenResponse(BaseModel):
-    consumer_id: str
+    username: str
+    consumer_uuid: str
     token: str
     expires_at: datetime
     secret: str
@@ -49,15 +59,16 @@ async def create_consumer(consumer_data: ConsumerRequest):
     Create a new Kong consumer and generate JWT credentials
     """
     logger.info(f"Creating consumer with username: {consumer_data.username}")
-    
+
+    # Auto-generate custom_id based on username
+    custom_id = get_consumer_uuid(consumer_data.username)
+
     async with httpx.AsyncClient() as client:
         # Create consumer in Kong
         consumer_payload = {
-            "username": consumer_data.username
+            "username": consumer_data.username,
+            "custom_id": custom_id
         }
-        if consumer_data.custom_id:
-            consumer_payload["custom_id"] = consumer_data.custom_id
-            
         try:
             consumer_response = await client.post(
                 f"{KONG_ADMIN_URL}/consumers/",
@@ -65,8 +76,7 @@ async def create_consumer(consumer_data: ConsumerRequest):
             )
             consumer_response.raise_for_status()
             consumer = consumer_response.json()
-            consumer_id = consumer["id"]
-            logger.info(f"Consumer created successfully with ID: {consumer_id}")
+            logger.info(f"Consumer created successfully with username: {consumer_data.username}")
 
         except httpx.HTTPStatusError as e:
             if e.response.status_code == 409:
@@ -78,8 +88,7 @@ async def create_consumer(consumer_data: ConsumerRequest):
                     )
                     consumer_response.raise_for_status()
                     consumer = consumer_response.json()
-                    consumer_id = consumer["id"]
-                    logger.info(f"Retrieved existing consumer with ID: {consumer_id}")
+                    logger.info(f"Retrieved existing consumer with username: {consumer_data.username}")
                 except httpx.HTTPStatusError:
                     logger.error(f"Failed to get existing consumer: {consumer_data.username}")
                     raise HTTPException(status_code=500, detail="Failed to get existing consumer")
@@ -100,7 +109,7 @@ async def create_consumer(consumer_data: ConsumerRequest):
 
         try:
             jwt_response = await client.post(
-                f"{KONG_ADMIN_URL}/consumers/{consumer_id}/jwt",
+                f"{KONG_ADMIN_URL}/consumers/{consumer_data.username}/jwt",
                 json=jwt_payload
             )
             jwt_response.raise_for_status()
@@ -123,8 +132,11 @@ async def create_consumer(consumer_data: ConsumerRequest):
         token = jwt.encode(payload, secret, algorithm="HS256")
         logger.info(f"JWT token generated for consumer: {consumer_data.username}, expires: {expiration}")
 
+        consumer_uuid = get_consumer_uuid(consumer_data.username)
+
         return TokenResponse(
-            consumer_id=consumer_id,
+            username=consumer_data.username,
+            consumer_uuid=consumer_uuid,
             token=token,
             expires_at=expiration,
             secret=secret_base64
