@@ -60,14 +60,10 @@ async def create_consumer(consumer_data: ConsumerRequest):
     """
     logger.info(f"Creating consumer with username: {consumer_data.username}")
 
-    # Auto-generate custom_id based on username
-    custom_id = get_consumer_uuid(consumer_data.username)
-
     async with httpx.AsyncClient() as client:
-        # Create consumer in Kong
+        # Create consumer in Kong (no custom_id)
         consumer_payload = {
-            "username": consumer_data.username,
-            "custom_id": custom_id
+            "username": consumer_data.username
         }
         try:
             consumer_response = await client.post(
