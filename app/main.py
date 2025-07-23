@@ -48,6 +48,14 @@ class TokenResponse(BaseModel):
     expires_at: datetime
     secret: str
 
+class GenerateTokenRequest(BaseModel):
+    username: str
+
+class GenerateTokenResponse(BaseModel):
+    token: str
+    expires_at: datetime
+    secret: str
+
 @app.get("/")
 async def root():
     logger.info("Root endpoint accessed")
@@ -138,6 +146,46 @@ async def create_consumer(consumer_data: ConsumerRequest):
             secret=secret_base64
         )
 
+@app.post("/generate-token", response_model=GenerateTokenResponse)
+async def generate_token(data: GenerateTokenRequest):
+    """
+    Generate a new JWT token for an existing consumer.
+    """
+    async with httpx.AsyncClient() as client:
+        # Check if consumer exists
+        response = await client.get(f"{KONG_ADMIN_URL}/consumers/{data.username}")
+        if response.status_code != 200:
+            raise HTTPException(status_code=404, detail="Consumer not found")
+
+        # Generate a new secret and create JWT credentials in Kong
+        secret = secrets.token_urlsafe(32)
+        secret_base64 = base64.b64encode(secret.encode()).decode()
+        unique_key = str(uuid.uuid4())  # Ensure key is unique
+        jwt_payload = {
+            "key": unique_key,
+            "secret": secret_base64,
+            "algorithm": "HS256"
+        }
+        jwt_response = await client.post(
+            f"{KONG_ADMIN_URL}/consumers/{data.username}/jwt",
+            json=jwt_payload
+        )
+        jwt_response.raise_for_status()
+
+        # Generate JWT token
+        expiration = datetime.utcnow() + timedelta(seconds=JWT_EXPIRATION_SECONDS)
+        payload = {
+            "iss": data.username,
+            "exp": int(expiration.timestamp()),
+            "iat": int(datetime.utcnow().timestamp()),
+        }
+        token = jwt.encode(payload, secret, algorithm="HS256")
+        return GenerateTokenResponse(
+            token=token,
+            expires_at=expiration,
+            secret=secret_base64
+        )
+
 @app.get("/consumers")
 async def list_consumers():
     """
@@ -193,6 +241,30 @@ async def delete_consumer(consumer_id: str):
                 raise HTTPException(status_code=404, detail="Consumer not found")
             logger.error(f"Failed to delete consumer {consumer_id}: {e.response.text}")
             raise HTTPException(status_code=500, detail=f"Failed to delete consumer: {e.response.text}")
+
+@app.get("/consumers/{username}/tokens")
+async def list_tokens(username: str):
+    """
+    List all JWT credentials for a consumer.
+    """
+    async with httpx.AsyncClient() as client:
+        response = await client.get(f"{KONG_ADMIN_URL}/consumers/{username}/jwt")
+        response.raise_for_status()
+        return response.json()
+
+@app.delete("/consumers/{username}/tokens/{jwt_id}")
+async def delete_token(username: str, jwt_id: str):
+    """
+    Delete a JWT credential (token) for a consumer.
+    """
+    async with httpx.AsyncClient() as client:
+        response = await client.delete(f"{KONG_ADMIN_URL}/consumers/{username}/jwt/{jwt_id}")
+        if response.status_code == 204:
+            return {"message": "Token deleted successfully"}
+        elif response.status_code == 404:
+            raise HTTPException(status_code=404, detail="Token not found")
+        else:
+            raise HTTPException(status_code=500, detail="Failed to delete token")
 
 if __name__ == "__main__":
     import uvicorn
