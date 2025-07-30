@@ -10,4 +10,10 @@ wheels/
 .venv
 .env
 
+# Sensitive files
+casdoor_cert.pem
+*.pem
+*.key
+
+# Backup files
 backup/
