@@ -58,13 +58,14 @@ We've created detailed documentation that explains everything in simple terms, e
 
 The documentation covers:
 
-- **🔐 JWT Authentication Explained**: How tokens work, why we use them, and how they're generated
-- **🏢 Kong Gateway Deep Dive**: Understanding the two essential plugins (JWT and CORS) and their configurations
+- **🔐 [JWT Authentication Guide](docs/CASDOOR_AUTH_README.md)**: How tokens work, why we use them, and how they're generated
+- **🔑 [OIDC Implementation Guide](docs/OIDC_IMPLEMENTATION_GUIDE.md)**: Complete OpenID Connect implementation with Casdoor
+- **🏢 [Kong Gateway Deep Dive](docs/kong-management-api.md)**: Understanding the two essential plugins (JWT and CORS) and their configurations
 - **🏗️ System Architecture**: Complete overview of how everything works together
 - **🚀 Quick Start Guide**: Get up and running in 5 minutes
-- **📋 API Reference**: Complete endpoint documentation with examples
+- **📋 [API Reference](docs/api-examples.md)**: Complete endpoint documentation with examples
 - **🔧 Configuration Guide**: How to customize the system
-- **🐳 Docker Setup**: Development and production deployment
+- **🐳 [Docker Setup](docs/README-Docker.md)**: Development and production deployment
 - **🧪 Testing Guide**: How to test your setup
 - **❓ FAQ**: Common questions and answers
 
@@ -90,6 +91,55 @@ make serve
 ```
 
 The documentation will be available at `http://localhost:8080`.
+
+## Testing
+
+Run the test suite to verify your setup:
+
+```bash
+# Run all tests
+python -m pytest tests/
+
+# Run specific test
+python tests/test_casdoor_auth.py
+
+# Verify Casdoor setup
+python tests/verify_casdoor_setup.py
+```
+
+## Examples
+
+Check out the examples in `docs/examples/`:
+
+- **OIDC Authentication**: `docs/examples/example_oidc_usage.py`
+- **Kong API Usage**: `docs/examples/example_kong_api_usage.py`
+- **Basic Usage**: `docs/examples/example_usage.py`
+
+## Project Structure
+
+```
+kong-auth/
+├── app/                    # Main application code
+│   ├── main.py            # FastAPI application entry point
+│   ├── kong_api.py        # Kong management API endpoints
+│   ├── kong_manager.py    # Kong management logic
+│   ├── casdoor_oidc.py    # OIDC authentication with Casdoor
+│   └── logging_config.py  # Logging configuration
+├── docs/                   # Documentation
+│   ├── examples/          # Code examples and usage
+│   ├── source/            # Sphinx documentation source
+│   └── *.md              # Markdown documentation files
+├── tests/                  # Test files
+│   ├── test_*.py         # Unit and integration tests
+│   └── verify_*.py       # Setup verification scripts
+├── kong/                   # Kong configuration files
+├── kong-setup/            # Kong setup scripts
+├── logs/                   # Application logs
+├── config.env.example     # Environment configuration template
+├── requirements.txt       # Python dependencies
+├── run.py                 # Application runner
+└── docker-compose*.yml    # Docker configurations
+```
 
 ## Prerequisites
 
