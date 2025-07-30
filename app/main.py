@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Depends
 from pydantic import BaseModel
 import httpx
 import jwt
@@ -16,6 +16,8 @@ load_dotenv()
 
 # Import Kong management API
 from .kong_api import router as kong_router
+# Import Casdoor OIDC authentication
+from .casdoor_oidc import get_current_user, get_optional_user, CasdoorUser, require_resource_ownership
 
 # Setup logging
 logger = logging.getLogger(__name__)
@@ -61,12 +63,43 @@ async def root():
     logger.info("Root endpoint accessed")
     return {"message": "Kong Auth Service is running"}
 
+@app.get("/me")
+async def get_current_user_info(current_user: CasdoorUser = Depends(get_current_user)):
+    """
+    Get information about the currently authenticated user
+    """
+    logger.info(f"User info requested for: {current_user.name}")
+    return {
+        "id": current_user.id,
+        "name": current_user.name,
+        "display_name": current_user.display_name,
+        "email": current_user.email,
+        "phone": current_user.phone,
+        "avatar": current_user.avatar,
+        "organization": current_user.organization,
+        "roles": current_user.roles,
+        "permissions": current_user.permissions
+    }
+
 @app.post("/create-consumer", response_model=TokenResponse)
-async def create_consumer(consumer_data: ConsumerRequest):
+async def create_consumer(
+    consumer_data: ConsumerRequest,
+    current_user: CasdoorUser = Depends(get_current_user)
+):
+    """
+    Create a new Kong consumer and generate JWT credentials
+    Users can only create consumers with their own username
+    """
+    # Ensure user can only create consumers with their own username
+    if consumer_data.username != current_user.name and "admin" not in current_user.roles:
+        raise HTTPException(
+            status_code=403,
+            detail="You can only create consumers with your own username"
+        )
     """
     Create a new Kong consumer and generate JWT credentials
     """
-    logger.info(f"Creating consumer with username: {consumer_data.username}")
+    logger.info(f"Creating consumer with username: {consumer_data.username} by user: {current_user.name}")
 
     async with httpx.AsyncClient() as client:
         # Create consumer in Kong (no custom_id)
@@ -147,7 +180,10 @@ async def create_consumer(consumer_data: ConsumerRequest):
         )
 
 @app.post("/generate-token", response_model=GenerateTokenResponse)
-async def generate_token(data: GenerateTokenRequest):
+async def generate_token(
+    data: GenerateTokenRequest,
+    current_user: CasdoorUser = Depends(get_current_user)
+):
     """
     Generate a new JWT token for an existing consumer.
     """
@@ -187,11 +223,13 @@ async def generate_token(data: GenerateTokenRequest):
         )
 
 @app.get("/consumers")
-async def list_consumers():
+async def list_consumers(
+    current_user: CasdoorUser = Depends(get_current_user)
+):
     """
     List all Kong consumers
     """
-    logger.info("Listing all consumers")
+    logger.info(f"Listing all consumers by user: {current_user.name}")
     async with httpx.AsyncClient() as client:
         try:
             response = await client.get(f"{KONG_ADMIN_URL}/consumers/")
@@ -204,11 +242,14 @@ async def list_consumers():
             raise HTTPException(status_code=500, detail=f"Failed to list consumers: {e.response.text}")
 
 @app.get("/consumers/{consumer_id}")
-async def get_consumer(consumer_id: str):
+async def get_consumer(
+    consumer_id: str,
+    current_user: CasdoorUser = Depends(require_resource_ownership("consumer_id"))
+):
     """
     Get a specific Kong consumer
     """
-    logger.info(f"Getting consumer with ID: {consumer_id}")
+    logger.info(f"Getting consumer with ID: {consumer_id} by user: {current_user.name}")
     async with httpx.AsyncClient() as client:
         try:
             response = await client.get(f"{KONG_ADMIN_URL}/consumers/{consumer_id}")
@@ -224,11 +265,14 @@ async def get_consumer(consumer_id: str):
             raise HTTPException(status_code=500, detail=f"Failed to get consumer: {e.response.text}")
 
 @app.delete("/consumers/{consumer_id}")
-async def delete_consumer(consumer_id: str):
+async def delete_consumer(
+    consumer_id: str,
+    current_user: CasdoorUser = Depends(require_resource_ownership("consumer_id"))
+):
     """
     Delete a Kong consumer
     """
-    logger.info(f"Deleting consumer with ID: {consumer_id}")
+    logger.info(f"Deleting consumer with ID: {consumer_id} by user: {current_user.name}")
     async with httpx.AsyncClient() as client:
         try:
             response = await client.delete(f"{KONG_ADMIN_URL}/consumers/{consumer_id}")
@@ -243,7 +287,10 @@ async def delete_consumer(consumer_id: str):
             raise HTTPException(status_code=500, detail=f"Failed to delete consumer: {e.response.text}")
 
 @app.get("/consumers/{username}/tokens")
-async def list_tokens(username: str):
+async def list_tokens(
+    username: str,
+    current_user: CasdoorUser = Depends(require_resource_ownership("username"))
+):
     """
     List all JWT credentials for a consumer.
     """
@@ -253,7 +300,11 @@ async def list_tokens(username: str):
         return response.json()
 
 @app.delete("/consumers/{username}/tokens/{jwt_id}")
-async def delete_token(username: str, jwt_id: str):
+async def delete_token(
+    username: str,
+    jwt_id: str,
+    current_user: CasdoorUser = Depends(require_resource_ownership("username"))
+):
     """
     Delete a JWT credential (token) for a consumer.
     """
