@@ -20,6 +20,8 @@ stages:
   - update
 
 build-image:
+  tags:
+    - llm-team
   stage: build
   before_script:
   script:
