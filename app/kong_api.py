@@ -8,6 +8,7 @@ from pydantic import BaseModel
 from typing import List, Dict, Any, Optional
 import logging
 from .kong_manager import KongManager, ServiceConfig, RouteConfig, PluginConfig
+from .casdoor_auth import get_current_user, CasdoorUser
 
 logger = logging.getLogger(__name__)
 
@@ -106,7 +107,8 @@ async def get_kong_manager() -> KongManager:
 @router.post("/services", response_model=Dict[str, Any])
 async def create_service(
     request: ServiceCreateRequest,
-    manager: KongManager = Depends(get_kong_manager)
+    manager: KongManager = Depends(get_kong_manager),
+    current_user: CasdoorUser = Depends(get_current_user)
 ):
     """Create a new Kong service"""
     try:
@@ -125,7 +127,10 @@ async def create_service(
 
 
 @router.get("/services", response_model=List[Dict[str, Any]])
-async def list_services(manager: KongManager = Depends(get_kong_manager)):
+async def list_services(
+    manager: KongManager = Depends(get_kong_manager),
+    current_user: CasdoorUser = Depends(get_current_user)
+):
     """List all Kong services"""
     try:
         services = await manager.list_services()
@@ -144,7 +149,8 @@ async def list_services(manager: KongManager = Depends(get_kong_manager)):
 @router.get("/services/{service_name}", response_model=Dict[str, Any])
 async def get_service(
     service_name: str,
-    manager: KongManager = Depends(get_kong_manager)
+    manager: KongManager = Depends(get_kong_manager),
+    current_user: CasdoorUser = Depends(get_current_user)
 ):
     """Get a specific Kong service"""
     try:
@@ -167,7 +173,8 @@ async def get_service(
 async def update_service(
     service_name: str,
     request: ServiceUpdateRequest,
-    manager: KongManager = Depends(get_kong_manager)
+    manager: KongManager = Depends(get_kong_manager),
+    current_user: CasdoorUser = Depends(get_current_user)
 ):
     """Update a Kong service"""
     try:
@@ -208,7 +215,8 @@ async def update_service(
 @router.delete("/services/{service_name}", response_model=Dict[str, Any])
 async def delete_service(
     service_name: str,
-    manager: KongManager = Depends(get_kong_manager)
+    manager: KongManager = Depends(get_kong_manager),
+    current_user: CasdoorUser = Depends(get_current_user)
 ):
     """Delete a Kong service"""
     try:
@@ -231,7 +239,8 @@ async def delete_service(
 @router.post("/routes", response_model=Dict[str, Any])
 async def create_route(
     request: RouteCreateRequest,
-    manager: KongManager = Depends(get_kong_manager)
+    manager: KongManager = Depends(get_kong_manager),
+    current_user: CasdoorUser = Depends(get_current_user)
 ):
     """Create a new Kong route"""
     try:
@@ -252,7 +261,8 @@ async def create_route(
 @router.get("/routes", response_model=List[Dict[str, Any]])
 async def list_routes(
     service_name: Optional[str] = None,
-    manager: KongManager = Depends(get_kong_manager)
+    manager: KongManager = Depends(get_kong_manager),
+    current_user: CasdoorUser = Depends(get_current_user)
 ):
     """List all Kong routes, optionally filtered by service"""
     try:
@@ -272,7 +282,8 @@ async def list_routes(
 @router.get("/routes/{route_name}", response_model=Dict[str, Any])
 async def get_route(
     route_name: str,
-    manager: KongManager = Depends(get_kong_manager)
+    manager: KongManager = Depends(get_kong_manager),
+    current_user: CasdoorUser = Depends(get_current_user)
 ):
     """Get a specific Kong route"""
     try:
@@ -295,7 +306,8 @@ async def get_route(
 async def update_route(
     route_name: str,
     request: RouteUpdateRequest,
-    manager: KongManager = Depends(get_kong_manager)
+    manager: KongManager = Depends(get_kong_manager),
+    current_user: CasdoorUser = Depends(get_current_user)
 ):
     """Update a Kong route"""
     try:
@@ -339,7 +351,8 @@ async def update_route(
 @router.delete("/routes/{route_name}", response_model=Dict[str, Any])
 async def delete_route(
     route_name: str,
-    manager: KongManager = Depends(get_kong_manager)
+    manager: KongManager = Depends(get_kong_manager),
+    current_user: CasdoorUser = Depends(get_current_user)
 ):
     """Delete a Kong route"""
     try:
@@ -363,7 +376,8 @@ async def delete_route(
 async def enable_plugin(
     service_name: str,
     request: PluginCreateRequest,
-    manager: KongManager = Depends(get_kong_manager)
+    manager: KongManager = Depends(get_kong_manager),
+    current_user: CasdoorUser = Depends(get_current_user)
 ):
     """Enable a plugin on a service"""
     try:
@@ -386,7 +400,8 @@ async def enable_plugin(
 @router.get("/plugins", response_model=List[Dict[str, Any]])
 async def list_plugins(
     service_name: Optional[str] = None,
-    manager: KongManager = Depends(get_kong_manager)
+    manager: KongManager = Depends(get_kong_manager),
+    current_user: CasdoorUser = Depends(get_current_user)
 ):
     """List all Kong plugins, optionally filtered by service"""
     try:
@@ -406,7 +421,8 @@ async def list_plugins(
 @router.delete("/plugins/{plugin_id}", response_model=Dict[str, Any])
 async def delete_plugin(
     plugin_id: str,
-    manager: KongManager = Depends(get_kong_manager)
+    manager: KongManager = Depends(get_kong_manager),
+    current_user: CasdoorUser = Depends(get_current_user)
 ):
     """Delete a Kong plugin"""
     try:
@@ -427,7 +443,8 @@ async def delete_plugin(
 @router.get("/services/{service_name}/health", response_model=ServiceHealthResponse)
 async def get_service_health(
     service_name: str,
-    manager: KongManager = Depends(get_kong_manager)
+    manager: KongManager = Depends(get_kong_manager),
+    current_user: CasdoorUser = Depends(get_current_user)
 ):
     """Get health information for a service"""
     try:
@@ -448,7 +465,8 @@ async def get_service_health(
 @router.post("/services/complete", response_model=Dict[str, Any])
 async def setup_complete_service(
     request: CompleteServiceRequest,
-    manager: KongManager = Depends(get_kong_manager)
+    manager: KongManager = Depends(get_kong_manager),
+    current_user: CasdoorUser = Depends(get_current_user)
 ):
     """Set up a complete service with routes and plugins"""
     try:
@@ -474,7 +492,10 @@ async def setup_complete_service(
 
 # Utility Endpoints
 @router.get("/status")
-async def kong_status(manager: KongManager = Depends(get_kong_manager)):
+async def kong_status(
+    manager: KongManager = Depends(get_kong_manager),
+    current_user: CasdoorUser = Depends(get_current_user)
+):
     """Get Kong API status"""
     try:
         # Try to list services to check if Kong is accessible
