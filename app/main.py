@@ -18,6 +18,8 @@ load_dotenv()
 from .kong_api import router as kong_router
 # Import Casdoor OIDC authentication
 from .casdoor_oidc import get_current_user, get_optional_user, CasdoorUser, require_resource_ownership
+# Import token utilities
+from .token_utils import extract_username_from_token, get_username_from_request_data
 
 # Setup logging
 logger = logging.getLogger(__name__)
@@ -57,6 +59,24 @@ class GenerateTokenResponse(BaseModel):
     token: str
     expires_at: datetime
     secret: str
+
+class GenerateTokenAutoRequest(BaseModel):
+    """
+    Request model for generating token with automatic username extraction
+    """
+    pass
+
+class ListTokensAutoRequest(BaseModel):
+    """
+    Request model for listing tokens with automatic username extraction
+    """
+    pass
+
+class DeleteTokenAutoRequest(BaseModel):
+    """
+    Request model for deleting token with automatic username extraction
+    """
+    jwt_id: str
 
 @app.get("/")
 async def root():
@@ -222,6 +242,52 @@ async def generate_token(
             secret=secret_base64
         )
 
+@app.post("/generate-token-auto", response_model=GenerateTokenResponse)
+async def generate_token_auto(
+    data: GenerateTokenAutoRequest,
+    current_user: CasdoorUser = Depends(get_current_user)
+):
+    """
+    Generate a new JWT token for the current user (username extracted from token).
+    """
+    username = current_user.name
+    logger.info(f"Generating token for user: {username}")
+    
+    async with httpx.AsyncClient() as client:
+        # Check if consumer exists
+        response = await client.get(f"{KONG_ADMIN_URL}/consumers/{username}")
+        if response.status_code != 200:
+            raise HTTPException(status_code=404, detail="Consumer not found")
+
+        # Generate a new secret and create JWT credentials in Kong
+        secret = secrets.token_urlsafe(32)
+        secret_base64 = base64.b64encode(secret.encode()).decode()
+        unique_key = str(uuid.uuid4())  # Ensure key is unique
+        jwt_payload = {
+            "key": unique_key,
+            "secret": secret_base64,
+            "algorithm": "HS256"
+        }
+        jwt_response = await client.post(
+            f"{KONG_ADMIN_URL}/consumers/{username}/jwt",
+            json=jwt_payload
+        )
+        jwt_response.raise_for_status()
+
+        # Generate JWT token
+        expiration = datetime.utcnow() + timedelta(seconds=JWT_EXPIRATION_SECONDS)
+        payload = {
+            "iss": username,
+            "exp": int(expiration.timestamp()),
+            "iat": int(datetime.utcnow().timestamp()),
+        }
+        token = jwt.encode(payload, secret, algorithm="HS256")
+        return GenerateTokenResponse(
+            token=token,
+            expires_at=expiration,
+            secret=secret_base64
+        )
+
 @app.get("/consumers")
 async def list_consumers(
     current_user: CasdoorUser = Depends(get_current_user)
@@ -299,6 +365,21 @@ async def list_tokens(
         response.raise_for_status()
         return response.json()
 
+@app.get("/my-tokens")
+async def list_my_tokens(
+    current_user: CasdoorUser = Depends(get_current_user)
+):
+    """
+    List all JWT credentials for the current user (username extracted from token).
+    """
+    username = current_user.name
+    logger.info(f"Listing tokens for user: {username}")
+    
+    async with httpx.AsyncClient() as client:
+        response = await client.get(f"{KONG_ADMIN_URL}/consumers/{username}/jwt")
+        response.raise_for_status()
+        return response.json()
+
 @app.delete("/consumers/{username}/tokens/{jwt_id}")
 async def delete_token(
     username: str,
@@ -308,6 +389,26 @@ async def delete_token(
     """
     Delete a JWT credential (token) for a consumer.
     """
+    async with httpx.AsyncClient() as client:
+        response = await client.delete(f"{KONG_ADMIN_URL}/consumers/{username}/jwt/{jwt_id}")
+        if response.status_code == 204:
+            return {"message": "Token deleted successfully"}
+        elif response.status_code == 404:
+            raise HTTPException(status_code=404, detail="Token not found")
+        else:
+            raise HTTPException(status_code=500, detail="Failed to delete token")
+
+@app.delete("/my-tokens/{jwt_id}")
+async def delete_my_token(
+    jwt_id: str,
+    current_user: CasdoorUser = Depends(get_current_user)
+):
+    """
+    Delete a JWT credential (token) for the current user (username extracted from token).
+    """
+    username = current_user.name
+    logger.info(f"Deleting token {jwt_id} for user: {username}")
+    
     async with httpx.AsyncClient() as client:
         response = await client.delete(f"{KONG_ADMIN_URL}/consumers/{username}/jwt/{jwt_id}")
         if response.status_code == 204:
