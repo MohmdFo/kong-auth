@@ -20,7 +20,7 @@ stages:
 # --- Sphinx Documentation Build ---
 docs-build:
   stage: docs
-  image: python:3.13
+  image: proxy.ai-lab.ir/python:3.13
   script:
     - pip install --upgrade pip
     - pip install -r docs/requirements.txt
@@ -35,7 +35,7 @@ docs-build:
 
 pages:
   stage: docs
-  image: python:3.13
+  image: proxy.ai-lab.ir/python:3.13
   script:
     - pip install --upgrade pip
     - pip install -r docs/requirements.txt
