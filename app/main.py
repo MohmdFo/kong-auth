@@ -72,6 +72,8 @@ class TokenInfo(BaseModel):
     consumer_id: Optional[str] = None
     rsa_public_key: Optional[str] = None
     secret: Optional[str] = None
+    token: Optional[str] = None
+    expires_at: Optional[datetime] = None
 
 class MyTokensResponse(BaseModel):
     username: str
@@ -214,7 +216,7 @@ async def generate_token_auto(
     Optionally provide a custom name for the token.
     """
     username = current_user.name
-    
+
     # Handle the request body (optional)
     token_name = None
     if request and request.token_name:
@@ -223,9 +225,9 @@ async def generate_token_auto(
         # Generate a meaningful default name
         timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
         token_name = f"{username}_token_{timestamp}"
-    
+
     logger.info(f"Generating token '{token_name}' for user: {username}")
-    
+
     async with httpx.AsyncClient() as client:
         # Check if consumer exists
         response = await client.get(f"{KONG_ADMIN_URL}/consumers/{username}")
@@ -297,41 +299,70 @@ async def list_my_tokens(
     """
     username = current_user.name
     logger.info(f"Listing tokens for user: {username}")
-    
+
     async with httpx.AsyncClient() as client:
         response = await client.get(f"{KONG_ADMIN_URL}/consumers/{username}/jwt")
         response.raise_for_status()
         response_data = response.json()
-        
+
         # Debug: Log the response structure
         logger.info(f"Kong API response type: {type(response_data)}")
         logger.info(f"Kong API response: {response_data}")
-        
+
         # Kong returns tokens in a 'data' field
         tokens = response_data.get("data", [])
         logger.info(f"Extracted tokens: {tokens}")
-        
+
         # Enhance the response with better token information
         enhanced_tokens = []
         for token in tokens:
             # Handle different response formats from Kong
             if isinstance(token, dict):
-                            enhanced_token = {
-                "id": token.get("id"),
-                "key": token.get("key"),  # This is the token name
-                "token_name": token.get("key"),  # Alias for clarity
-                "algorithm": token.get("algorithm"),
-                "created_at": token.get("created_at"),
-                "consumer_id": token.get("consumer", {}).get("id") if token.get("consumer") else None,
-                "rsa_public_key": token.get("rsa_public_key"),
-                "secret": token.get("secret")[:10] + "..." if token.get("secret") else None  # Truncated for security
-            }
+                # Get the secret from Kong (base64 encoded)
+                secret_base64 = token.get("secret")
+                if not secret_base64:
+                    logger.warning(f"No secret found for token {token.get('key')}")
+                    continue
+
+                # Decode the secret
+                try:
+                    secret = base64.b64decode(secret_base64).decode()
+                except Exception as e:
+                    logger.error(f"Failed to decode secret for token {token.get('key')}: {e}")
+                    continue
+
+                # Generate JWT token with the same logic as create endpoint
+                expiration = datetime.utcnow() + timedelta(seconds=JWT_EXPIRATION_SECONDS)
+                payload = {
+                    "iss": username,  # issuer claim
+                    "exp": int(expiration.timestamp()),  # expiration time
+                    "iat": int(datetime.utcnow().timestamp()),  # issued at
+                }
+
+                try:
+                    jwt_token = jwt.encode(payload, secret, algorithm="HS256")
+                except Exception as e:
+                    logger.error(f"Failed to generate JWT token for {token.get('key')}: {e}")
+                    continue
+
+                enhanced_token = {
+                    "id": token.get("id"),
+                    "key": token.get("key"),  # This is the token name
+                    "token_name": token.get("key"),  # Alias for clarity
+                    "algorithm": token.get("algorithm"),
+                    "created_at": token.get("created_at"),
+                    "consumer_id": token.get("consumer", {}).get("id") if token.get("consumer") else None,
+                    "rsa_public_key": token.get("rsa_public_key"),
+                    "secret": secret_base64[:10] + "..." if secret_base64 else None,  # Truncated for security
+                    "token": jwt_token,  # The actual JWT token
+                    "expires_at": expiration  # Token expiration time
+                }
             else:
                 # If token is not a dict, log it and skip
                 logger.warning(f"Unexpected token format: {type(token)} - {token}")
                 continue
             enhanced_tokens.append(enhanced_token)
-        
+
         return {
             "username": username,
             "total_tokens": len(enhanced_tokens),
@@ -348,7 +379,7 @@ async def delete_my_token(
     """
     username = current_user.name
     logger.info(f"Deleting token {jwt_id} for user: {username}")
-    
+
     async with httpx.AsyncClient() as client:
         response = await client.delete(f"{KONG_ADMIN_URL}/consumers/{username}/jwt/{jwt_id}")
         if response.status_code == 204:
@@ -374,24 +405,24 @@ async def delete_my_token_by_name(
         response = await client.get(f"{KONG_ADMIN_URL}/consumers/{username}/jwt")
         response.raise_for_status()
         response_data = response.json()
-        
+
         # Kong returns tokens in a 'data' field
         tokens = response_data.get("data", [])
-        
+
         # Find the token with the matching name
         target_token = None
         for token in tokens:
             if isinstance(token, dict) and token.get("key") == token_name:
                 target_token = token
                 break
-        
+
         if not target_token:
             raise HTTPException(status_code=404, detail=f"Token with name '{token_name}' not found")
-        
+
         # Delete the token using its ID
         token_id = target_token.get("id")
         delete_response = await client.delete(f"{KONG_ADMIN_URL}/consumers/{username}/jwt/{token_id}")
-        
+
         if delete_response.status_code == 204:
             return {
                 "message": "Token deleted successfully",
