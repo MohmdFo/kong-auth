@@ -226,9 +226,10 @@ async def generate_token_auto(
     """
     Generate a new JWT token for the current user (username extracted from token).
     Optionally provide a custom name for the token.
+    Automatically creates the consumer if it doesn't exist.
     """
     username = current_user.name
-
+    
     # Handle the request body (optional)
     token_name = None
     if request and request.token_name:
@@ -237,14 +238,41 @@ async def generate_token_auto(
         # Generate a meaningful default name
         timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
         token_name = f"{username}_token_{timestamp}"
-
+    
     logger.info(f"Generating token '{token_name}' for user: {username}")
-
+    
     async with httpx.AsyncClient() as client:
-        # Check if consumer exists
-        response = await client.get(f"{KONG_ADMIN_URL}/consumers/{username}")
-        if response.status_code != 200:
-            raise HTTPException(status_code=404, detail="Consumer not found")
+        # Check if consumer exists, create if it doesn't
+        consumer_response = await client.get(f"{KONG_ADMIN_URL}/consumers/{username}")
+        
+        if consumer_response.status_code == 404:
+            # Consumer doesn't exist, create it
+            logger.info(f"Consumer {username} not found, creating new consumer")
+            consumer_payload = {
+                "username": username
+            }
+            try:
+                create_response = await client.post(
+                    f"{KONG_ADMIN_URL}/consumers/",
+                    json=consumer_payload
+                )
+                create_response.raise_for_status()
+                consumer = create_response.json()
+                logger.info(f"Consumer created successfully with username: {username}")
+                
+            except httpx.HTTPStatusError as e:
+                logger.error(f"Failed to create consumer: {e.response.text}")
+                raise HTTPException(status_code=500, detail=f"Failed to create consumer: {e.response.text}")
+                
+        elif consumer_response.status_code == 200:
+            # Consumer already exists
+            consumer = consumer_response.json()
+            logger.info(f"Using existing consumer with username: {username}")
+            
+        else:
+            # Some other error occurred
+            logger.error(f"Failed to check consumer existence: {consumer_response.text}")
+            raise HTTPException(status_code=500, detail="Failed to check consumer existence")
 
         # Generate a new secret and create JWT credentials in Kong
         secret = secrets.token_urlsafe(32)
