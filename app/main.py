@@ -85,6 +85,18 @@ class DeleteTokenResponse(BaseModel):
     deleted_token_name: Optional[str] = None
     deleted_token_id: Optional[str] = None
 
+
+
+class AutoGenerateConsumerResponse(BaseModel):
+    username: str
+    consumer_uuid: str
+    token: str
+    expires_at: datetime
+    secret: str
+    token_name: str
+    token_id: str
+    consumer_created: bool  # True if consumer was created, False if it already existed
+
 @app.get("/")
 async def root():
     logger.info("Root endpoint accessed")
@@ -268,6 +280,107 @@ async def generate_token_auto(
             secret=secret_base64,
             token_name=token_name,
             token_id=token_id
+        )
+
+@app.post("/auto-generate-consumer", response_model=AutoGenerateConsumerResponse)
+async def auto_generate_consumer(
+    current_user: CasdoorUser = Depends(get_current_user)
+):
+    """
+    Automatically generate a Kong consumer and JWT token based on the current user's Casdoor authentication.
+    Creates the consumer if it doesn't exist, then generates a new JWT token.
+    All user information is extracted from the Casdoor token automatically.
+    """
+    username = current_user.name
+    logger.info(f"Auto-generating consumer and token for user: {username}")
+    
+    # Generate a meaningful default token name based on user info and timestamp
+    timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+    token_name = f"{username}_auto_{timestamp}"
+    
+    consumer_created = False
+    
+    async with httpx.AsyncClient() as client:
+        # Check if consumer exists, create if it doesn't
+        consumer_response = await client.get(f"{KONG_ADMIN_URL}/consumers/{username}")
+        
+        if consumer_response.status_code == 404:
+            # Consumer doesn't exist, create it
+            logger.info(f"Consumer {username} not found, creating new consumer")
+            consumer_payload = {
+                "username": username
+            }
+            try:
+                create_response = await client.post(
+                    f"{KONG_ADMIN_URL}/consumers/",
+                    json=consumer_payload
+                )
+                create_response.raise_for_status()
+                consumer = create_response.json()
+                consumer_created = True
+                logger.info(f"Consumer created successfully with username: {username}")
+                
+            except httpx.HTTPStatusError as e:
+                logger.error(f"Failed to create consumer: {e.response.text}")
+                raise HTTPException(status_code=500, detail=f"Failed to create consumer: {e.response.text}")
+                
+        elif consumer_response.status_code == 200:
+            # Consumer already exists
+            consumer = consumer_response.json()
+            logger.info(f"Using existing consumer with username: {username}")
+            
+        else:
+            # Some other error occurred
+            logger.error(f"Failed to check consumer existence: {consumer_response.text}")
+            raise HTTPException(status_code=500, detail="Failed to check consumer existence")
+
+        # Generate a new secret and create JWT credentials in Kong
+        secret = secrets.token_urlsafe(32)
+        secret_base64 = base64.b64encode(secret.encode()).decode()
+        
+        # Use the custom token name as the key in Kong
+        jwt_payload = {
+            "key": token_name,
+            "secret": secret_base64,
+            "algorithm": "HS256"
+        }
+        
+        try:
+            jwt_response = await client.post(
+                f"{KONG_ADMIN_URL}/consumers/{username}/jwt",
+                json=jwt_payload
+            )
+            jwt_response.raise_for_status()
+            jwt_credentials = jwt_response.json()
+            token_id = jwt_credentials.get("id", token_name)
+            logger.info(f"JWT credentials created for consumer: {username}")
+            
+        except httpx.HTTPStatusError as e:
+            logger.error(f"Failed to create JWT credentials: {e.response.text}")
+            raise HTTPException(status_code=500, detail=f"Failed to create JWT credentials: {e.response.text}")
+
+        # Generate JWT token
+        expiration = datetime.utcnow() + timedelta(seconds=JWT_EXPIRATION_SECONDS)
+        payload = {
+            "iss": username,  # issuer claim
+            "exp": int(expiration.timestamp()),  # expiration time
+            "iat": int(datetime.utcnow().timestamp()),  # issued at
+        }
+        
+        token = jwt.encode(payload, secret, algorithm="HS256")
+        logger.info(f"JWT token generated for consumer: {username}, expires: {expiration}")
+
+        consumer_uuid = get_consumer_uuid(username)
+
+        return AutoGenerateConsumerResponse(
+            username=username,
+            consumer_uuid=consumer_uuid,
+            token=token,
+            expires_at=expiration,
+            secret=secret_base64,
+            token_name=token_name,
+            token_id=token_id,
+            consumer_created=consumer_created
         )
 
 @app.get("/consumers")
