@@ -12,43 +12,12 @@ default:
 variables:
   DOCKER_IMAGE: $NEXUS_URL/$CI_PROJECT_NAMESPACE/$CI_PROJECT_NAME:$CI_COMMIT_TAG
 
+
+
+
 stages:
-  - docs      # Documentation build
   - build
   - update
-
-# --- Sphinx Documentation Build ---
-docs-build:
-  stage: docs
-  image: proxy.ai-lab.ir/python:3.13
-  script:
-    - pip install --upgrade pip
-    - pip install -r docs/requirements.txt
-    - cd docs
-    - make html
-  artifacts:
-    paths:
-      - docs/_build/html
-    expire_in: 1 week
-  only:
-    - main
-
-pages:
-  stage: docs
-  image: proxy.ai-lab.ir/python:3.13
-  script:
-    - pip install --upgrade pip
-    - pip install -r docs/requirements.txt
-    - cd docs
-    - make html
-    - mkdir -p ../public
-    - cp -r _build/html/* ../public/
-  artifacts:
-    paths:
-      - public
-    expire_in: 1 week
-  only:
-    - main
 
 build-image:
   tags:
@@ -62,6 +31,7 @@ build-image:
     - docker push $DOCKER_IMAGE
   only:
     - /^v[0-9]+(\.[0-9]+){0,2}(-rc\.[0-9]+)?$/
+
 
 release-candidate-gitops:
   stage: update
@@ -78,6 +48,8 @@ release-candidate-gitops:
     GITOPS_ENVIRONMENT: "edge"
   rules:
     - if: '$CI_COMMIT_TAG =~ /^v[0-9]+(?:\.[0-9]+)+-rc\.[0-9]+$/'
+
+
 
 production-gitops:
   stage: update
