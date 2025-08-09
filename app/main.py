@@ -50,7 +50,6 @@ class TokenResponse(BaseModel):
     consumer_uuid: str
     token: str
     expires_at: datetime
-    secret: str
 
 class GenerateTokenAutoRequest(BaseModel):
     token_name: Optional[str] = None
@@ -59,7 +58,6 @@ class GenerateTokenAutoRequest(BaseModel):
 class GenerateTokenResponse(BaseModel):
     token: str
     expires_at: datetime
-    secret: str
     token_name: str
     token_id: str
 
@@ -71,7 +69,6 @@ class TokenInfo(BaseModel):
     created_at: Optional[int] = None
     consumer_id: Optional[str] = None
     rsa_public_key: Optional[str] = None
-    secret: Optional[str] = None
     token: Optional[str] = None
     expires_at: Optional[datetime] = None
 
@@ -92,7 +89,6 @@ class AutoGenerateConsumerResponse(BaseModel):
     consumer_uuid: str
     token: str
     expires_at: datetime
-    secret: str
     token_name: str
     token_id: str
     consumer_created: bool  # True if consumer was created, False if it already existed
@@ -214,8 +210,7 @@ async def create_consumer(
             username=consumer_data.username,
             consumer_uuid=consumer_uuid,
             token=token,
-            expires_at=expiration,
-            secret=secret_base64
+            expires_at=expiration
         )
 
 @app.post("/generate-token-auto", response_model=GenerateTokenResponse)
@@ -305,7 +300,6 @@ async def generate_token_auto(
         return GenerateTokenResponse(
             token=token,
             expires_at=expiration,
-            secret=secret_base64,
             token_name=token_name,
             token_id=token_id
         )
@@ -405,7 +399,6 @@ async def auto_generate_consumer(
             consumer_uuid=consumer_uuid,
             token=token,
             expires_at=expiration,
-            secret=secret_base64,
             token_name=token_name,
             token_id=token_id,
             consumer_created=consumer_created
@@ -486,6 +479,12 @@ async def list_my_tokens(
                     logger.error(f"Failed to generate JWT token for {token.get('key')}: {e}")
                     continue
 
+                # Truncate the JWT token for security - show only first 10 and last 10 characters
+                if len(jwt_token) > 20:
+                    truncated_token = f"{jwt_token[:10]}...{jwt_token[-10:]}"
+                else:
+                    truncated_token = jwt_token
+
                 enhanced_token = {
                     "id": token.get("id"),
                     "key": token.get("key"),  # This is the token name
@@ -494,8 +493,7 @@ async def list_my_tokens(
                     "created_at": token.get("created_at"),
                     "consumer_id": token.get("consumer", {}).get("id") if token.get("consumer") else None,
                     "rsa_public_key": token.get("rsa_public_key"),
-                    "secret": secret_base64[:10] + "..." if secret_base64 else None,  # Truncated for security
-                    "token": jwt_token,  # The actual JWT token
+                    "token": truncated_token,  # The truncated JWT token
                     "expires_at": expiration  # Token expiration time
                 }
             else:
