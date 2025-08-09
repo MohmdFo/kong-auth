@@ -10,6 +10,7 @@ from typing import Optional
 import logging
 import uuid
 from dotenv import load_dotenv
+import time
 
 # Load environment variables from .env file
 load_dotenv()
@@ -20,6 +21,19 @@ from .kong_api import router as kong_router
 from .casdoor_oidc import get_current_user, get_optional_user, CasdoorUser, require_resource_ownership
 # Import token utilities
 from .token_utils import extract_username_from_token, get_username_from_request_data
+# Import metrics
+from .metrics import metrics_router
+from .metrics.base import (
+    CONSUMER_CREATED_COUNT,
+    CONSUMER_DELETED_COUNT,
+    JWT_TOKEN_GENERATED_COUNT,
+    KONG_API_CALLS_COUNT,
+    KONG_API_DURATION_SECONDS,
+    ACTIVE_CONSUMERS_GAUGE,
+    ACTIVE_TOKENS_GAUGE,
+    CASDOOR_AUTH_SUCCESS_COUNT,
+    CASDOOR_AUTH_FAILURE_COUNT
+)
 
 # Setup logging
 logger = logging.getLogger(__name__)
@@ -33,6 +47,13 @@ app = FastAPI(
 # Include Kong management API
 app.include_router(kong_router)
 
+# Include metrics router
+app.include_router(metrics_router, prefix="/metrics", tags=["metrics"])
+
+# Add metrics middleware
+from .metrics.middleware import metrics_middleware
+app.middleware("http")(metrics_middleware)
+
 # Configuration
 KONG_ADMIN_URL = os.getenv("KONG_ADMIN_URL", "http://localhost:8006")
 JWT_EXPIRATION_SECONDS = int(os.getenv("JWT_EXPIRATION_SECONDS", "31536000"))
@@ -41,6 +62,19 @@ NAMESPACE = uuid.UUID("6ba7b810-9dad-11d1-80b4-00c04fd430c8")  # DNS namespace
 
 def get_consumer_uuid(username: str) -> str:
     return str(uuid.uuid5(NAMESPACE, username))
+
+async def update_active_consumers_gauge():
+    """Update the active consumers gauge by counting all consumers in Kong"""
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.get(f"{KONG_ADMIN_URL}/consumers/")
+            if response.status_code == 200:
+                consumers = response.json()
+                ACTIVE_CONSUMERS_GAUGE.set(len(consumers))
+            else:
+                logger.warning(f"Failed to get consumers for gauge update: {response.status_code}")
+    except Exception as e:
+        logger.error(f"Error updating active consumers gauge: {e}")
 
 class ConsumerRequest(BaseModel):
     username: str
@@ -104,6 +138,10 @@ async def get_current_user_info(current_user: CasdoorUser = Depends(get_current_
     Get information about the currently authenticated user
     """
     logger.info(f"User info requested for: {current_user.name}")
+    
+    # Track successful Casdoor authentication
+    CASDOOR_AUTH_SUCCESS_COUNT.labels(username=current_user.name).inc()
+    
     return {
         "id": current_user.id,
         "name": current_user.name,
@@ -142,26 +180,43 @@ async def create_consumer(
             "username": consumer_data.username
         }
         try:
+            # Track Kong API call
+            kong_start_time = time.time()
             consumer_response = await client.post(
                 f"{KONG_ADMIN_URL}/consumers/",
                 json=consumer_payload
             )
+            kong_duration = time.time() - kong_start_time
+            KONG_API_CALLS_COUNT.labels(endpoint="/consumers", method="POST", status="success").inc()
+            KONG_API_DURATION_SECONDS.labels(endpoint="/consumers", method="POST").observe(kong_duration)
+            
             consumer_response.raise_for_status()
             consumer = consumer_response.json()
             logger.info(f"Consumer created successfully with username: {consumer_data.username}")
+            
+            # Track consumer creation
+            CONSUMER_CREATED_COUNT.labels(username=consumer_data.username).inc()
+            ACTIVE_CONSUMERS_GAUGE.inc()
 
         except httpx.HTTPStatusError as e:
+            KONG_API_CALLS_COUNT.labels(endpoint="/consumers", method="POST", status="error").inc()
             if e.response.status_code == 409:
                 # Consumer already exists, get the existing consumer
                 logger.info(f"Consumer {consumer_data.username} already exists, retrieving existing consumer")
                 try:
+                    kong_start_time = time.time()
                     consumer_response = await client.get(
                         f"{KONG_ADMIN_URL}/consumers/{consumer_data.username}"
                     )
+                    kong_duration = time.time() - kong_start_time
+                    KONG_API_CALLS_COUNT.labels(endpoint=f"/consumers/{consumer_data.username}", method="GET", status="success").inc()
+                    KONG_API_DURATION_SECONDS.labels(endpoint=f"/consumers/{consumer_data.username}", method="GET").observe(kong_duration)
+                    
                     consumer_response.raise_for_status()
                     consumer = consumer_response.json()
                     logger.info(f"Retrieved existing consumer with username: {consumer_data.username}")
                 except httpx.HTTPStatusError:
+                    KONG_API_CALLS_COUNT.labels(endpoint=f"/consumers/{consumer_data.username}", method="GET", status="error").inc()
                     logger.error(f"Failed to get existing consumer: {consumer_data.username}")
                     raise HTTPException(status_code=500, detail="Failed to get existing consumer")
             else:
@@ -180,15 +235,21 @@ async def create_consumer(
         }
 
         try:
+            kong_start_time = time.time()
             jwt_response = await client.post(
                 f"{KONG_ADMIN_URL}/consumers/{consumer_data.username}/jwt",
                 json=jwt_payload
             )
+            kong_duration = time.time() - kong_start_time
+            KONG_API_CALLS_COUNT.labels(endpoint=f"/consumers/{consumer_data.username}/jwt", method="POST", status="success").inc()
+            KONG_API_DURATION_SECONDS.labels(endpoint=f"/consumers/{consumer_data.username}/jwt", method="POST").observe(kong_duration)
+            
             jwt_response.raise_for_status()
             jwt_credentials = jwt_response.json()
             logger.info(f"JWT credentials created for consumer: {consumer_data.username}")
 
         except httpx.HTTPStatusError as e:
+            KONG_API_CALLS_COUNT.labels(endpoint=f"/consumers/{consumer_data.username}/jwt", method="POST", status="error").inc()
             logger.error(f"Failed to create JWT credentials: {e.response.text}")
             raise HTTPException(status_code=500, detail=f"Failed to create JWT credentials: {e.response.text}")
 
@@ -203,6 +264,10 @@ async def create_consumer(
 
         token = jwt.encode(payload, secret, algorithm="HS256")
         logger.info(f"JWT token generated for consumer: {consumer_data.username}, expires: {expiration}")
+
+        # Track JWT token generation
+        JWT_TOKEN_GENERATED_COUNT.labels(username=consumer_data.username, token_type="consumer").inc()
+        ACTIVE_TOKENS_GAUGE.inc()
 
         consumer_uuid = get_consumer_uuid(consumer_data.username)
 
@@ -238,7 +303,11 @@ async def generate_token_auto(
     
     async with httpx.AsyncClient() as client:
         # Check if consumer exists, create if it doesn't
+        kong_start_time = time.time()
         consumer_response = await client.get(f"{KONG_ADMIN_URL}/consumers/{username}")
+        kong_duration = time.time() - kong_start_time
+        KONG_API_CALLS_COUNT.labels(endpoint=f"/consumers/{username}", method="GET", status="success").inc()
+        KONG_API_DURATION_SECONDS.labels(endpoint=f"/consumers/{username}", method="GET").observe(kong_duration)
         
         if consumer_response.status_code == 404:
             # Consumer doesn't exist, create it
@@ -247,15 +316,25 @@ async def generate_token_auto(
                 "username": username
             }
             try:
+                kong_start_time = time.time()
                 create_response = await client.post(
                     f"{KONG_ADMIN_URL}/consumers/",
                     json=consumer_payload
                 )
+                kong_duration = time.time() - kong_start_time
+                KONG_API_CALLS_COUNT.labels(endpoint="/consumers", method="POST", status="success").inc()
+                KONG_API_DURATION_SECONDS.labels(endpoint="/consumers", method="POST").observe(kong_duration)
+                
                 create_response.raise_for_status()
                 consumer = create_response.json()
                 logger.info(f"Consumer created successfully with username: {username}")
                 
+                # Track consumer creation
+                CONSUMER_CREATED_COUNT.labels(username=username).inc()
+                ACTIVE_CONSUMERS_GAUGE.inc()
+                
             except httpx.HTTPStatusError as e:
+                KONG_API_CALLS_COUNT.labels(endpoint="/consumers", method="POST", status="error").inc()
                 logger.error(f"Failed to create consumer: {e.response.text}")
                 raise HTTPException(status_code=500, detail=f"Failed to create consumer: {e.response.text}")
                 
@@ -266,6 +345,7 @@ async def generate_token_auto(
             
         else:
             # Some other error occurred
+            KONG_API_CALLS_COUNT.labels(endpoint=f"/consumers/{username}", method="GET", status="error").inc()
             logger.error(f"Failed to check consumer existence: {consumer_response.text}")
             raise HTTPException(status_code=500, detail="Failed to check consumer existence")
 
@@ -279,10 +359,15 @@ async def generate_token_auto(
             "secret": secret_base64,
             "algorithm": "HS256"
         }
+        kong_start_time = time.time()
         jwt_response = await client.post(
             f"{KONG_ADMIN_URL}/consumers/{username}/jwt",
             json=jwt_payload
         )
+        kong_duration = time.time() - kong_start_time
+        KONG_API_CALLS_COUNT.labels(endpoint=f"/consumers/{username}/jwt", method="POST", status="success").inc()
+        KONG_API_DURATION_SECONDS.labels(endpoint=f"/consumers/{username}/jwt", method="POST").observe(kong_duration)
+        
         jwt_response.raise_for_status()
         
         # Get the created JWT credential to get the ID
@@ -297,6 +382,11 @@ async def generate_token_auto(
             "iat": int(datetime.utcnow().timestamp()),
         }
         token = jwt.encode(payload, secret, algorithm="HS256")
+        
+        # Track JWT token generation
+        JWT_TOKEN_GENERATED_COUNT.labels(username=username, token_type="auto").inc()
+        ACTIVE_TOKENS_GAUGE.inc()
+        
         return GenerateTokenResponse(
             token=token,
             expires_at=expiration,
@@ -324,7 +414,11 @@ async def auto_generate_consumer(
     
     async with httpx.AsyncClient() as client:
         # Check if consumer exists, create if it doesn't
+        kong_start_time = time.time()
         consumer_response = await client.get(f"{KONG_ADMIN_URL}/consumers/{username}")
+        kong_duration = time.time() - kong_start_time
+        KONG_API_CALLS_COUNT.labels(endpoint=f"/consumers/{username}", method="GET", status="success").inc()
+        KONG_API_DURATION_SECONDS.labels(endpoint=f"/consumers/{username}", method="GET").observe(kong_duration)
         
         if consumer_response.status_code == 404:
             # Consumer doesn't exist, create it
@@ -368,16 +462,22 @@ async def auto_generate_consumer(
         }
         
         try:
+            kong_start_time = time.time()
             jwt_response = await client.post(
                 f"{KONG_ADMIN_URL}/consumers/{username}/jwt",
                 json=jwt_payload
             )
+            kong_duration = time.time() - kong_start_time
+            KONG_API_CALLS_COUNT.labels(endpoint=f"/consumers/{username}/jwt", method="POST", status="success").inc()
+            KONG_API_DURATION_SECONDS.labels(endpoint=f"/consumers/{username}/jwt", method="POST").observe(kong_duration)
+            
             jwt_response.raise_for_status()
             jwt_credentials = jwt_response.json()
             token_id = jwt_credentials.get("id", token_name)
             logger.info(f"JWT credentials created for consumer: {username}")
             
         except httpx.HTTPStatusError as e:
+            KONG_API_CALLS_COUNT.labels(endpoint=f"/consumers/{username}/jwt", method="POST", status="error").inc()
             logger.error(f"Failed to create JWT credentials: {e.response.text}")
             raise HTTPException(status_code=500, detail=f"Failed to create JWT credentials: {e.response.text}")
 
@@ -391,6 +491,10 @@ async def auto_generate_consumer(
         
         token = jwt.encode(payload, secret, algorithm="HS256")
         logger.info(f"JWT token generated for consumer: {username}, expires: {expiration}")
+
+        # Track JWT token generation
+        JWT_TOKEN_GENERATED_COUNT.labels(username=username, token_type="auto_generate").inc()
+        ACTIVE_TOKENS_GAUGE.inc()
 
         consumer_uuid = get_consumer_uuid(username)
 
@@ -414,12 +518,22 @@ async def list_consumers(
     logger.info(f"Listing all consumers by user: {current_user.name}")
     async with httpx.AsyncClient() as client:
         try:
+            kong_start_time = time.time()
             response = await client.get(f"{KONG_ADMIN_URL}/consumers/")
+            kong_duration = time.time() - kong_start_time
+            KONG_API_CALLS_COUNT.labels(endpoint="/consumers", method="GET", status="success").inc()
+            KONG_API_DURATION_SECONDS.labels(endpoint="/consumers", method="GET").observe(kong_duration)
+            
             response.raise_for_status()
             consumers = response.json()
             logger.info(f"Retrieved {len(consumers)} consumers")
+            
+            # Update the active consumers gauge
+            ACTIVE_CONSUMERS_GAUGE.set(len(consumers))
+            
             return consumers
         except httpx.HTTPStatusError as e:
+            KONG_API_CALLS_COUNT.labels(endpoint="/consumers", method="GET", status="error").inc()
             logger.error(f"Failed to list consumers: {e.response.text}")
             raise HTTPException(status_code=500, detail=f"Failed to list consumers: {e.response.text}")
 
@@ -435,7 +549,12 @@ async def list_my_tokens(
     logger.info(f"Listing tokens for user: {username}")
 
     async with httpx.AsyncClient() as client:
+        kong_start_time = time.time()
         response = await client.get(f"{KONG_ADMIN_URL}/consumers/{username}/jwt")
+        kong_duration = time.time() - kong_start_time
+        KONG_API_CALLS_COUNT.labels(endpoint=f"/consumers/{username}/jwt", method="GET", status="success").inc()
+        KONG_API_DURATION_SECONDS.labels(endpoint=f"/consumers/{username}/jwt", method="GET").observe(kong_duration)
+        
         response.raise_for_status()
         response_data = response.json()
 
@@ -446,6 +565,9 @@ async def list_my_tokens(
         # Kong returns tokens in a 'data' field
         tokens = response_data.get("data", [])
         logger.info(f"Extracted tokens: {tokens}")
+
+        # Update active tokens gauge
+        ACTIVE_TOKENS_GAUGE.set(len(tokens))
 
         # Enhance the response with better token information
         enhanced_tokens = []
@@ -520,12 +642,21 @@ async def delete_my_token(
     logger.info(f"Deleting token {jwt_id} for user: {username}")
 
     async with httpx.AsyncClient() as client:
+        kong_start_time = time.time()
         response = await client.delete(f"{KONG_ADMIN_URL}/consumers/{username}/jwt/{jwt_id}")
+        kong_duration = time.time() - kong_start_time
+        KONG_API_CALLS_COUNT.labels(endpoint=f"/consumers/{username}/jwt/{jwt_id}", method="DELETE", status="success").inc()
+        KONG_API_DURATION_SECONDS.labels(endpoint=f"/consumers/{username}/jwt/{jwt_id}", method="DELETE").observe(kong_duration)
+        
         if response.status_code == 204:
+            # Track successful deletion
+            ACTIVE_TOKENS_GAUGE.dec()
             return {"message": "Token deleted successfully"}
         elif response.status_code == 404:
+            KONG_API_CALLS_COUNT.labels(endpoint=f"/consumers/{username}/jwt/{jwt_id}", method="DELETE", status="error").inc()
             raise HTTPException(status_code=404, detail="Token not found")
         else:
+            KONG_API_CALLS_COUNT.labels(endpoint=f"/consumers/{username}/jwt/{jwt_id}", method="DELETE", status="error").inc()
             raise HTTPException(status_code=500, detail="Failed to delete token")
 
 @app.delete("/my-tokens/by-name/{token_name}", response_model=DeleteTokenResponse)
@@ -541,7 +672,12 @@ async def delete_my_token_by_name(
     
     async with httpx.AsyncClient() as client:
         # First, get all tokens to find the one with the matching name
+        kong_start_time = time.time()
         response = await client.get(f"{KONG_ADMIN_URL}/consumers/{username}/jwt")
+        kong_duration = time.time() - kong_start_time
+        KONG_API_CALLS_COUNT.labels(endpoint=f"/consumers/{username}/jwt", method="GET", status="success").inc()
+        KONG_API_DURATION_SECONDS.labels(endpoint=f"/consumers/{username}/jwt", method="GET").observe(kong_duration)
+        
         response.raise_for_status()
         response_data = response.json()
 
@@ -560,13 +696,20 @@ async def delete_my_token_by_name(
 
         # Delete the token using its ID
         token_id = target_token.get("id")
+        kong_start_time = time.time()
         delete_response = await client.delete(f"{KONG_ADMIN_URL}/consumers/{username}/jwt/{token_id}")
+        kong_duration = time.time() - kong_start_time
+        KONG_API_CALLS_COUNT.labels(endpoint=f"/consumers/{username}/jwt/{token_id}", method="DELETE", status="success").inc()
+        KONG_API_DURATION_SECONDS.labels(endpoint=f"/consumers/{username}/jwt/{token_id}", method="DELETE").observe(kong_duration)
 
         if delete_response.status_code == 204:
+            # Track successful deletion
+            ACTIVE_TOKENS_GAUGE.dec()
             return {
                 "message": "Token deleted successfully",
                 "deleted_token_name": token_name,
                 "deleted_token_id": token_id
             }
         else:
+            KONG_API_CALLS_COUNT.labels(endpoint=f"/consumers/{username}/jwt/{token_id}", method="DELETE", status="error").inc()
             raise HTTPException(status_code=500, detail="Failed to delete token") 
