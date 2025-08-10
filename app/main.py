@@ -165,23 +165,13 @@ async def get_current_user_info(current_user: CasdoorUser = Depends(get_current_
 
 @app.post("/create-consumer", response_model=TokenResponse)
 async def create_consumer(
-    consumer_data: ConsumerRequest,
-    current_user: CasdoorUser = Depends(get_current_user)
+    consumer_data: ConsumerRequest
 ):
     """
     Create a new Kong consumer and generate JWT credentials
-    Users can only create consumers with their own username
+    No authentication required - open endpoint
     """
-    # Ensure user can only create consumers with their own username
-    if consumer_data.username != current_user.name and "admin" not in current_user.roles:
-        raise HTTPException(
-            status_code=403,
-            detail="You can only create consumers with your own username"
-        )
-    """
-    Create a new Kong consumer and generate JWT credentials
-    """
-    logger.info(f"Creating consumer with username: {consumer_data.username} by user: {current_user.name}")
+    logger.info(f"Creating consumer with username: {consumer_data.username}")
 
     async with httpx.AsyncClient() as client:
         # Create consumer in Kong (no custom_id)
