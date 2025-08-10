@@ -380,14 +380,80 @@ async def generate_token_auto(
             json=jwt_payload
         )
         kong_duration = time.time() - kong_start_time
-        KONG_API_CALLS_COUNT.labels(endpoint=f"/consumers/{username}/jwt", method="POST", status="success").inc()
-        KONG_API_DURATION_SECONDS.labels(endpoint=f"/consumers/{username}/jwt", method="POST").observe(kong_duration)
         
-        jwt_response.raise_for_status()
-        
-        # Get the created JWT credential to get the ID
-        jwt_credentials = jwt_response.json()
-        token_id = jwt_credentials.get("id", token_name)
+        try:
+            jwt_response.raise_for_status()
+            KONG_API_CALLS_COUNT.labels(endpoint=f"/consumers/{username}/jwt", method="POST", status="success").inc()
+            KONG_API_DURATION_SECONDS.labels(endpoint=f"/consumers/{username}/jwt", method="POST").observe(kong_duration)
+            
+            # Get the created JWT credential to get the ID
+            jwt_credentials = jwt_response.json()
+            token_id = jwt_credentials.get("id", token_name)
+            
+        except httpx.HTTPStatusError as e:
+            KONG_API_CALLS_COUNT.labels(endpoint=f"/consumers/{username}/jwt", method="POST", status="error").inc()
+            
+            if e.response.status_code == 409:
+                # Handle duplicate JWT token name conflict
+                logger.warning(f"JWT token name '{token_name}' already exists for consumer '{username}'. Generating unique name.")
+                
+                # Generate a unique token name by appending timestamp and random suffix
+                unique_suffix = str(uuid.uuid4())[:8]
+                unique_timestamp = datetime.utcnow().strftime("%H%M%S")
+                unique_token_name = f"{token_name}_{unique_timestamp}_{unique_suffix}"
+                
+                logger.info(f"Retrying with unique token name: {unique_token_name}")
+                
+                # Update the payload with unique name
+                unique_jwt_payload = {
+                    "key": unique_token_name,
+                    "secret": secret_base64,
+                    "algorithm": "HS256"
+                }
+                
+                # Retry with unique name
+                retry_start_time = time.time()
+                retry_response = await client.post(
+                    f"{KONG_ADMIN_URL}/consumers/{username}/jwt",
+                    json=unique_jwt_payload
+                )
+                retry_duration = time.time() - retry_start_time
+                
+                try:
+                    retry_response.raise_for_status()
+                    KONG_API_CALLS_COUNT.labels(endpoint=f"/consumers/{username}/jwt", method="POST", status="success").inc()
+                    KONG_API_DURATION_SECONDS.labels(endpoint=f"/consumers/{username}/jwt", method="POST").observe(retry_duration)
+                    
+                    # Update token name and get credentials
+                    token_name = unique_token_name
+                    jwt_credentials = retry_response.json()
+                    token_id = jwt_credentials.get("id", token_name)
+                    logger.info(f"JWT credentials created successfully with unique name: {unique_token_name}")
+                    
+                except httpx.HTTPStatusError as retry_error:
+                    KONG_API_CALLS_COUNT.labels(endpoint=f"/consumers/{username}/jwt", method="POST", status="error").inc()
+                    logger.error(f"Failed to create JWT credentials even with unique name: {retry_error.response.text}")
+                    raise HTTPException(
+                        status_code=500, 
+                        detail={
+                            "error": "Failed to create JWT credentials",
+                            "message": "Unable to create JWT token even with unique name generation",
+                            "original_error": e.response.text,
+                            "retry_error": retry_error.response.text
+                        }
+                    )
+                    
+            else:
+                # Handle other HTTP errors
+                logger.error(f"Failed to create JWT credentials: {e.response.text}")
+                raise HTTPException(
+                    status_code=500, 
+                    detail={
+                        "error": "Failed to create JWT credentials",
+                        "message": f"HTTP {e.response.status_code}: {e.response.text}",
+                        "status_code": e.response.status_code
+                    }
+                )
 
         # Generate JWT token
         expiration = datetime.utcnow() + timedelta(seconds=JWT_EXPIRATION_SECONDS)
@@ -483,18 +549,79 @@ async def auto_generate_consumer(
                 json=jwt_payload
             )
             kong_duration = time.time() - kong_start_time
+            
+            jwt_response.raise_for_status()
             KONG_API_CALLS_COUNT.labels(endpoint=f"/consumers/{username}/jwt", method="POST", status="success").inc()
             KONG_API_DURATION_SECONDS.labels(endpoint=f"/consumers/{username}/jwt", method="POST").observe(kong_duration)
             
-            jwt_response.raise_for_status()
             jwt_credentials = jwt_response.json()
             token_id = jwt_credentials.get("id", token_name)
             logger.info(f"JWT credentials created for consumer: {username}")
             
         except httpx.HTTPStatusError as e:
             KONG_API_CALLS_COUNT.labels(endpoint=f"/consumers/{username}/jwt", method="POST", status="error").inc()
-            logger.error(f"Failed to create JWT credentials: {e.response.text}")
-            raise HTTPException(status_code=500, detail=f"Failed to create JWT credentials: {e.response.text}")
+            
+            if e.response.status_code == 409:
+                # Handle duplicate JWT token name conflict
+                logger.warning(f"JWT token name '{token_name}' already exists for consumer '{username}'. Generating unique name.")
+                
+                # Generate a unique token name by appending timestamp and random suffix
+                unique_suffix = str(uuid.uuid4())[:8]
+                unique_timestamp = datetime.utcnow().strftime("%H%M%S")
+                unique_token_name = f"{token_name}_{unique_timestamp}_{unique_suffix}"
+                
+                logger.info(f"Retrying with unique token name: {unique_token_name}")
+                
+                # Update the payload with unique name
+                unique_jwt_payload = {
+                    "key": unique_token_name,
+                    "secret": secret_base64,
+                    "algorithm": "HS256"
+                }
+                
+                # Retry with unique name
+                retry_start_time = time.time()
+                retry_response = await client.post(
+                    f"{KONG_ADMIN_URL}/consumers/{username}/jwt",
+                    json=unique_jwt_payload
+                )
+                retry_duration = time.time() - retry_start_time
+                
+                try:
+                    retry_response.raise_for_status()
+                    KONG_API_CALLS_COUNT.labels(endpoint=f"/consumers/{username}/jwt", method="POST", status="success").inc()
+                    KONG_API_DURATION_SECONDS.labels(endpoint=f"/consumers/{username}/jwt", method="POST").observe(retry_duration)
+                    
+                    # Update token name and get credentials
+                    token_name = unique_token_name
+                    jwt_credentials = retry_response.json()
+                    token_id = jwt_credentials.get("id", token_name)
+                    logger.info(f"JWT credentials created successfully with unique name: {unique_token_name}")
+                    
+                except httpx.HTTPStatusError as retry_error:
+                    KONG_API_CALLS_COUNT.labels(endpoint=f"/consumers/{username}/jwt", method="POST", status="error").inc()
+                    logger.error(f"Failed to create JWT credentials even with unique name: {retry_error.response.text}")
+                    raise HTTPException(
+                        status_code=500, 
+                        detail={
+                            "error": "Failed to create JWT credentials",
+                            "message": "Unable to create JWT token even with unique name generation",
+                            "original_error": e.response.text,
+                            "retry_error": retry_error.response.text
+                        }
+                    )
+                    
+            else:
+                # Handle other HTTP errors
+                logger.error(f"Failed to create JWT credentials: {e.response.text}")
+                raise HTTPException(
+                    status_code=500, 
+                    detail={
+                        "error": "Failed to create JWT credentials",
+                        "message": f"HTTP {e.response.status_code}: {e.response.text}",
+                        "status_code": e.response.status_code
+                    }
+                )
 
         # Generate JWT token
         expiration = datetime.utcnow() + timedelta(seconds=JWT_EXPIRATION_SECONDS)
@@ -733,4 +860,4 @@ async def delete_my_token_by_name(
             KONG_API_CALLS_COUNT.labels(endpoint=f"/consumers/{username}/jwt/{token_id}", method="DELETE", status="error").inc()
             # Capture error in Sentry
             capture_request_error(Exception(f"Failed to delete token by name: {delete_response.text}"), request=None, username=username, token_name=token_name, token_id=token_id, status_code=delete_response.status_code)
-            raise HTTPException(status_code=500, detail="Failed to delete token") 
+            raise HTTPException(status_code=500, detail="Failed to delete token")
