@@ -8,12 +8,19 @@ import os
 import logging
 from dotenv import load_dotenv
 from app.logging_config import setup_logging
-
-# Setup logging
-logger = setup_logging()
+from app.observability.sentry import init_sentry
 
 # Load environment variables from .env file if it exists
 load_dotenv()
+
+# Setup logging
+setup_logging()
+
+# Initialize Sentry
+init_sentry()
+
+# Get logger
+logger = logging.getLogger(__name__)
 
 if __name__ == "__main__":
     # Get configuration from environment variables
