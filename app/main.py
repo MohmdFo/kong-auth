@@ -34,6 +34,9 @@ from .metrics.base import (
     CASDOOR_AUTH_SUCCESS_COUNT,
     CASDOOR_AUTH_FAILURE_COUNT
 )
+# Import Sentry
+from .observability.sentry import init_sentry
+from .middleware.sentry import setup_sentry_middleware, capture_request_error
 
 # Setup logging
 logger = logging.getLogger(__name__)
@@ -44,6 +47,9 @@ app = FastAPI(
     version="2.0.0"
 )
 
+# Initialize Sentry
+init_sentry()
+
 # Include Kong management API
 app.include_router(kong_router)
 
@@ -53,6 +59,9 @@ app.include_router(metrics_router, prefix="/metrics", tags=["metrics"])
 # Add metrics middleware
 from .metrics.middleware import metrics_middleware
 app.middleware("http")(metrics_middleware)
+
+# Add Sentry middleware
+setup_sentry_middleware(app)
 
 # Configuration
 KONG_ADMIN_URL = os.getenv("KONG_ADMIN_URL", "http://localhost:8006")
@@ -215,12 +224,16 @@ async def create_consumer(
                     consumer_response.raise_for_status()
                     consumer = consumer_response.json()
                     logger.info(f"Retrieved existing consumer with username: {consumer_data.username}")
-                except httpx.HTTPStatusError:
+                except httpx.HTTPStatusError as get_error:
                     KONG_API_CALLS_COUNT.labels(endpoint=f"/consumers/{consumer_data.username}", method="GET", status="error").inc()
                     logger.error(f"Failed to get existing consumer: {consumer_data.username}")
+                    # Capture error in Sentry
+                    capture_request_error(get_error, request=None, username=consumer_data.username, operation="get_existing_consumer")
                     raise HTTPException(status_code=500, detail="Failed to get existing consumer")
             else:
                 logger.error(f"Failed to create consumer: {e.response.text}")
+                # Capture error in Sentry
+                capture_request_error(e, request=None, username=consumer_data.username, operation="create_consumer", status_code=e.response.status_code)
                 raise HTTPException(status_code=500, detail=f"Failed to create consumer: {e.response.text}")
 
         # Generate a random secret for JWT
@@ -251,6 +264,8 @@ async def create_consumer(
         except httpx.HTTPStatusError as e:
             KONG_API_CALLS_COUNT.labels(endpoint=f"/consumers/{consumer_data.username}/jwt", method="POST", status="error").inc()
             logger.error(f"Failed to create JWT credentials: {e.response.text}")
+            # Capture error in Sentry
+            capture_request_error(e, request=None, username=consumer_data.username, operation="create_jwt_credentials", status_code=e.response.status_code)
             raise HTTPException(status_code=500, detail=f"Failed to create JWT credentials: {e.response.text}")
 
         # Generate JWT token
@@ -535,6 +550,8 @@ async def list_consumers(
         except httpx.HTTPStatusError as e:
             KONG_API_CALLS_COUNT.labels(endpoint="/consumers", method="GET", status="error").inc()
             logger.error(f"Failed to list consumers: {e.response.text}")
+            # Capture error in Sentry
+            capture_request_error(e, request=None, operation="list_consumers", status_code=e.response.status_code)
             raise HTTPException(status_code=500, detail=f"Failed to list consumers: {e.response.text}")
 
 @app.get("/my-tokens", response_model=MyTokensResponse)
@@ -657,6 +674,8 @@ async def delete_my_token(
             raise HTTPException(status_code=404, detail="Token not found")
         else:
             KONG_API_CALLS_COUNT.labels(endpoint=f"/consumers/{username}/jwt/{jwt_id}", method="DELETE", status="error").inc()
+            # Capture error in Sentry
+            capture_request_error(Exception(f"Failed to delete token: {response.text}"), request=None, username=username, jwt_id=jwt_id, status_code=response.status_code)
             raise HTTPException(status_code=500, detail="Failed to delete token")
 
 @app.delete("/my-tokens/by-name/{token_name}", response_model=DeleteTokenResponse)
@@ -712,4 +731,6 @@ async def delete_my_token_by_name(
             }
         else:
             KONG_API_CALLS_COUNT.labels(endpoint=f"/consumers/{username}/jwt/{token_id}", method="DELETE", status="error").inc()
+            # Capture error in Sentry
+            capture_request_error(Exception(f"Failed to delete token by name: {delete_response.text}"), request=None, username=username, token_name=token_name, token_id=token_id, status_code=delete_response.status_code)
             raise HTTPException(status_code=500, detail="Failed to delete token") 
