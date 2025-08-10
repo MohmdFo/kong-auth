@@ -41,6 +41,7 @@ class Settings(BaseSettings):
     # Logging Configuration
     LOG_LEVEL: str = Field(default="INFO", env="LOG_LEVEL")
     LOG_FORMAT: str = Field(default="json", env="LOG_FORMAT")
+    LOGS_DIR: str = Field(default="logs", env="LOGS_DIR")
     
     # Server Configuration
     HOST: str = Field(default="0.0.0.0", env="HOST")

@@ -102,6 +102,18 @@ def setup_logging() -> None:
     # Determine log level
     log_level = getattr(logging, settings.LOG_LEVEL.upper(), logging.INFO)
     
+    # Ensure logs directory exists
+    import os
+    logs_dir = settings.LOGS_DIR
+    if not os.path.exists(logs_dir):
+        try:
+            os.makedirs(logs_dir, exist_ok=True)
+            print(f"Created logs directory: {logs_dir}")
+        except Exception as e:
+            print(f"Warning: Could not create logs directory {logs_dir}: {e}")
+            # Fall back to console-only logging if directory creation fails
+            logs_dir = None
+    
     # Configure logging
     logging_config = {
         "version": 1,
@@ -136,7 +148,7 @@ def setup_logging() -> None:
                 "level": log_level,
                 "formatter": "json" if settings.LOG_FORMAT == "json" else "simple",
                 "filters": ["request_id", "sentry"],
-                "filename": "logs/app.log",
+                "filename": f"{logs_dir}/app.log" if logs_dir else None,
                 "maxBytes": 10485760,  # 10MB
                 "backupCount": 5
             },
@@ -145,7 +157,7 @@ def setup_logging() -> None:
                 "level": logging.ERROR,
                 "formatter": "json" if settings.LOG_FORMAT == "json" else "simple",
                 "filters": ["request_id", "sentry"],
-                "filename": "logs/error.log",
+                "filename": f"{logs_dir}/error.log" if logs_dir else None,
                 "maxBytes": 10485760,  # 10MB
                 "backupCount": 5
             }
@@ -153,42 +165,42 @@ def setup_logging() -> None:
         "loggers": {
             "": {  # Root logger
                 "level": log_level,
-                "handlers": ["console", "file", "error_file"],
+                "handlers": ["console", "file", "error_file"] if logs_dir else ["console"],
                 "propagate": False
             },
             "app": {  # Application logger
                 "level": log_level,
-                "handlers": ["console", "file", "error_file"],
+                "handlers": ["console", "file", "error_file"] if logs_dir else ["console"],
                 "propagate": False
             },
             "uvicorn": {  # Uvicorn logger
                 "level": log_level,
-                "handlers": ["console", "file"],
+                "handlers": ["console", "file"] if logs_dir else ["console"],
                 "propagate": False
             },
             "uvicorn.access": {  # Uvicorn access logger
                 "level": log_level,
-                "handlers": ["console", "file"],
+                "handlers": ["console", "file"] if logs_dir else ["console"],
                 "propagate": False
             },
             "uvicorn.error": {  # Uvicorn error logger
                 "level": log_level,
-                "handlers": ["console", "file", "error_file"],
+                "handlers": ["console", "file", "error_file"] if logs_dir else ["console"],
                 "propagate": False
             },
             "fastapi": {  # FastAPI logger
                 "level": log_level,
-                "handlers": ["console", "file"],
+                "handlers": ["console", "file"] if logs_dir else ["console"],
                 "propagate": False
             },
             "httpx": {  # HTTPX logger
                 "level": logging.WARNING,
-                "handlers": ["console", "file"],
+                "handlers": ["console", "file"] if logs_dir else ["console"],
                 "propagate": False
             },
             "casdoor": {  # Casdoor logger
                 "level": log_level,
-                "handlers": ["console", "file"],
+                "handlers": ["console", "file"] if logs_dir else ["console"],
                 "propagate": False
             }
         }

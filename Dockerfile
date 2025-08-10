@@ -27,6 +27,9 @@ RUN poetry install --only main --no-root
 # Copy application code
 COPY . .
 
+# Create logs directory and set permissions
+RUN mkdir -p /app/logs && chmod 755 /app/logs
+
 # Create non-root user
 RUN useradd --create-home --shell /bin/bash app && chown -R app:app /app
 USER app
