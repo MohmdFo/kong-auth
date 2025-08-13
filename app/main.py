@@ -262,7 +262,8 @@ async def create_consumer(
         expiration = datetime.utcnow() + timedelta(seconds=JWT_EXPIRATION_SECONDS)
 
         payload = {
-            "iss": consumer_data.username,  # issuer claim
+            "iss": consumer_data.username,  # Issuer identifies the user
+            "kid": consumer_data.username,  # Key ID to match Kong credential key
             "exp": int(expiration.timestamp()),  # expiration time
             "iat": int(datetime.utcnow().timestamp()),  # issued at
         }
@@ -358,9 +359,10 @@ async def generate_token_auto(
         secret = secrets.token_urlsafe(32)
         secret_base64 = base64.b64encode(secret.encode()).decode()
         
-        # Use the custom token name as the key in Kong
+        # Use the token name as the key in Kong
+        # We'll use the 'kid' claim in JWT to match this key
         jwt_payload = {
-            "key": token_name,
+            "key": token_name,  # This will match the 'kid' claim in JWT
             "secret": secret_base64,
             "algorithm": "HS256"
         }
@@ -448,7 +450,8 @@ async def generate_token_auto(
         # Generate JWT token
         expiration = datetime.utcnow() + timedelta(seconds=JWT_EXPIRATION_SECONDS)
         payload = {
-            "iss": username,
+            "iss": username,  # Issuer identifies the user
+            "kid": token_name,  # Key ID to match Kong credential key
             "exp": int(expiration.timestamp()),
             "iat": int(datetime.utcnow().timestamp()),
         }
@@ -525,9 +528,10 @@ async def auto_generate_consumer(
         secret = secrets.token_urlsafe(32)
         secret_base64 = base64.b64encode(secret.encode()).decode()
         
-        # Use the custom token name as the key in Kong
+        # Use the token name as the key in Kong
+        # We'll use the 'kid' claim in JWT to match this key
         jwt_payload = {
-            "key": token_name,
+            "key": token_name,  # This will match the 'kid' claim in JWT
             "secret": secret_base64,
             "algorithm": "HS256"
         }
@@ -616,7 +620,8 @@ async def auto_generate_consumer(
         # Generate JWT token
         expiration = datetime.utcnow() + timedelta(seconds=JWT_EXPIRATION_SECONDS)
         payload = {
-            "iss": username,  # issuer claim
+            "iss": username,  # Issuer identifies the user
+            "kid": token_name,  # Key ID to match Kong credential key
             "exp": int(expiration.timestamp()),  # expiration time
             "iat": int(datetime.utcnow().timestamp()),  # issued at
         }
@@ -724,7 +729,8 @@ async def list_my_tokens(
                 # Generate JWT token with the same logic as create endpoint
                 expiration = datetime.utcnow() + timedelta(seconds=JWT_EXPIRATION_SECONDS)
                 payload = {
-                    "iss": username,  # issuer claim
+                    "iss": username,  # Issuer identifies the user
+                    "kid": token.get("key"),  # Key ID to match Kong credential key
                     "exp": int(expiration.timestamp()),  # expiration time
                     "iat": int(datetime.utcnow().timestamp()),  # issued at
                 }
