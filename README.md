@@ -16,6 +16,36 @@ A FastAPI application that creates Kong consumers, generates JWT tokens for auth
 - Complete Docker support with development and production configurations
 - Comprehensive testing and CI/CD pipeline
 
+## ⚠️ Important: Kong JWT Configuration
+
+**Before using this service**, ensure your Kong JWT plugin is properly configured. We recently updated the JWT token format to fix authentication issues.
+
+### 🔧 Required Kong Configuration
+
+Your Kong JWT plugin **must** use this configuration:
+
+```python
+plugin_data = {
+    "name": "jwt",
+    "config": {
+        "key_claim_name": "kid",  # ⚠️ CRITICAL: Must be "kid" (not "iss")
+        "secret_is_base64": True,
+        "claims_to_verify": ["exp"],
+        "header_names": ["authorization"]
+    }
+}
+```
+
+### 📖 Full Configuration Guide
+
+**📋 See [KONG_JWT_CONFIG.md](./KONG_JWT_CONFIG.md) for complete setup instructions and troubleshooting.**
+
+This guide covers:
+- Why we changed from `iss` to `kid` claims
+- Step-by-step Kong configuration
+- Testing your setup
+- Troubleshooting common issues
+
 ## Quick Start
 
 Get up and running in 5 minutes:
