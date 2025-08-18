@@ -3,11 +3,12 @@ Kong Manager Module
 Provides a clean interface for managing Kong services and routes
 """
 
-import httpx
 import logging
-from typing import Dict, Any, List, Optional
-from pydantic import BaseModel, field_validator
 import os
+from typing import Any, Dict, List, Optional
+
+import httpx
+from pydantic import BaseModel, field_validator
 
 logger = logging.getLogger(__name__)
 
@@ -17,6 +18,7 @@ KONG_ADMIN_URL = os.getenv("KONG_ADMIN_URL", "http://localhost:8006")
 
 class ServiceConfig(BaseModel):
     """Configuration for creating a Kong service"""
+
     name: str
     url: str  # Changed from HttpUrl to str for better compatibility
     protocol: str = "http"
@@ -29,17 +31,18 @@ class ServiceConfig(BaseModel):
     read_timeout: Optional[int] = None
     tags: Optional[List[str]] = None
 
-    @field_validator('url')
+    @field_validator("url")
     @classmethod
     def validate_url(cls, v):
         """Validate URL format"""
-        if not v.startswith(('http://', 'https://')):
-            raise ValueError('URL must start with http:// or https://')
+        if not v.startswith(("http://", "https://")):
+            raise ValueError("URL must start with http:// or https://")
         return v
 
 
 class RouteConfig(BaseModel):
     """Configuration for creating a Kong route"""
+
     name: str
     service_name: str
     paths: Optional[List[str]] = None
@@ -58,6 +61,7 @@ class RouteConfig(BaseModel):
 
 class PluginConfig(BaseModel):
     """Configuration for enabling Kong plugins"""
+
     name: str
     config: Dict[str, Any]
     enabled: bool = True
@@ -68,7 +72,7 @@ class KongManager:
     """Manages Kong services, routes, and plugins"""
 
     def __init__(self, admin_url: str = KONG_ADMIN_URL):
-        self.admin_url = admin_url.rstrip('/')
+        self.admin_url = admin_url.rstrip("/")
         self.client = httpx.AsyncClient()
 
     async def __aenter__(self):
@@ -77,7 +81,9 @@ class KongManager:
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         await self.client.aclose()
 
-    async def _make_request(self, method: str, endpoint: str, **kwargs) -> Dict[str, Any]:
+    async def _make_request(
+        self, method: str, endpoint: str, **kwargs
+    ) -> Dict[str, Any]:
         """Make HTTP request to Kong Admin API"""
         url = f"{self.admin_url}{endpoint}"
         try:
@@ -85,11 +91,15 @@ class KongManager:
             response.raise_for_status()
             return response.json() if response.content else {}
         except httpx.HTTPStatusError as e:
-            logger.error(f"Kong API error: {e.response.status_code} - {e.response.text}")
+            logger.error(
+                f"Kong API error: {e.response.status_code} - {e.response.text}"
+            )
             raise e
         except httpx.ConnectError as e:
             logger.error(f"Kong connection error: {e}")
-            raise ConnectionError(f"Cannot connect to Kong Admin API at {self.admin_url}. Please ensure Kong is running and accessible.")
+            raise ConnectionError(
+                f"Cannot connect to Kong Admin API at {self.admin_url}. Please ensure Kong is running and accessible."
+            )
         except httpx.TimeoutException as e:
             logger.error(f"Kong timeout error: {e}")
             raise TimeoutError(f"Request to Kong Admin API timed out: {e}")
@@ -112,7 +122,9 @@ class KongManager:
                 logger.info(f"ℹ️  Service '{config.name}' already exists")
                 return service
             else:
-                logger.error(f"❌ Failed to create service '{config.name}': {e.response.text}")
+                logger.error(
+                    f"❌ Failed to create service '{config.name}': {e.response.text}"
+                )
                 raise
 
     async def get_service(self, service_name: str) -> Dict[str, Any]:
@@ -130,10 +142,14 @@ class KongManager:
         services = await self._make_request("GET", "/services/")
         return services.get("data", [])
 
-    async def update_service(self, service_name: str, config: ServiceConfig) -> Dict[str, Any]:
+    async def update_service(
+        self, service_name: str, config: ServiceConfig
+    ) -> Dict[str, Any]:
         """Update a service"""
         service_data = config.model_dump(exclude_none=True)
-        service = await self._make_request("PATCH", f"/services/{service_name}", json=service_data)
+        service = await self._make_request(
+            "PATCH", f"/services/{service_name}", json=service_data
+        )
         logger.info(f"✅ Service '{service_name}' updated successfully")
         return service
 
@@ -161,7 +177,9 @@ class KongManager:
                 logger.info(f"ℹ️  Route '{config.name}' already exists")
                 return route
             else:
-                logger.error(f"❌ Failed to create route '{config.name}': {e.response.text}")
+                logger.error(
+                    f"❌ Failed to create route '{config.name}': {e.response.text}"
+                )
                 raise
 
     async def get_route(self, route_name: str) -> Dict[str, Any]:
@@ -174,7 +192,9 @@ class KongManager:
                 raise ValueError(f"Route '{route_name}' not found")
             raise
 
-    async def list_routes(self, service_name: Optional[str] = None) -> List[Dict[str, Any]]:
+    async def list_routes(
+        self, service_name: Optional[str] = None
+    ) -> List[Dict[str, Any]]:
         """List all routes, optionally filtered by service"""
         endpoint = "/routes/"
         if service_name:
@@ -183,13 +203,17 @@ class KongManager:
         routes = await self._make_request("GET", endpoint)
         return routes.get("data", [])
 
-    async def update_route(self, route_name: str, config: RouteConfig) -> Dict[str, Any]:
+    async def update_route(
+        self, route_name: str, config: RouteConfig
+    ) -> Dict[str, Any]:
         """Update a route"""
         route_data = config.model_dump(exclude_none=True)
         if "service_name" in route_data:
             route_data["service"] = {"name": route_data.pop("service_name")}
 
-        route = await self._make_request("PATCH", f"/routes/{route_name}", json=route_data)
+        route = await self._make_request(
+            "PATCH", f"/routes/{route_name}", json=route_data
+        )
         logger.info(f"✅ Route '{route_name}' updated successfully")
         return route
 
@@ -199,23 +223,33 @@ class KongManager:
         logger.info(f"✅ Route '{route_name}' deleted successfully")
         return {"message": f"Route '{route_name}' deleted successfully"}
 
-    async def enable_plugin(self, service_name: str, config: PluginConfig) -> Dict[str, Any]:
+    async def enable_plugin(
+        self, service_name: str, config: PluginConfig
+    ) -> Dict[str, Any]:
         """Enable a plugin on a service"""
         plugin_data = config.model_dump(exclude_none=True)
 
         try:
-            plugin = await self._make_request("POST", f"/services/{service_name}/plugins", json=plugin_data)
+            plugin = await self._make_request(
+                "POST", f"/services/{service_name}/plugins", json=plugin_data
+            )
             logger.info(f"✅ Plugin '{config.name}' enabled on service '{service_name}'")
             return plugin
         except httpx.HTTPStatusError as e:
             if e.response.status_code == 409:
-                logger.info(f"ℹ️  Plugin '{config.name}' already enabled on service '{service_name}'")
+                logger.info(
+                    f"ℹ️  Plugin '{config.name}' already enabled on service '{service_name}'"
+                )
                 return {"message": "Plugin already exists"}
             else:
-                logger.error(f"❌ Failed to enable plugin '{config.name}': {e.response.text}")
+                logger.error(
+                    f"❌ Failed to enable plugin '{config.name}': {e.response.text}"
+                )
                 raise
 
-    async def list_plugins(self, service_name: Optional[str] = None) -> List[Dict[str, Any]]:
+    async def list_plugins(
+        self, service_name: Optional[str] = None
+    ) -> List[Dict[str, Any]]:
         """List plugins, optionally filtered by service"""
         endpoint = "/plugins/"
         if service_name:
@@ -246,7 +280,7 @@ class KongManager:
                 "service": service,
                 "routes": routes,
                 "plugins": plugins,
-                "status": "healthy" if service else "unhealthy"
+                "status": "healthy" if service else "unhealthy",
             }
         except Exception as e:
             logger.error(f"Failed to get health for service '{service_name}': {e}")
@@ -255,14 +289,15 @@ class KongManager:
                 "routes": [],
                 "plugins": [],
                 "status": "error",
-                "error": str(e)
+                "error": str(e),
             }
 
     async def setup_complete_service(
-            self, service_config: ServiceConfig,
-            route_configs: List[RouteConfig],
-            plugin_configs: Optional[List[PluginConfig]] = None
-            ) -> Dict[str, Any]:
+        self,
+        service_config: ServiceConfig,
+        route_configs: List[RouteConfig],
+        plugin_configs: Optional[List[PluginConfig]] = None,
+    ) -> Dict[str, Any]:
         """Set up a complete service with routes and plugins"""
         logger.info(f"🚀 Setting up complete service: {service_config.name}")
 
@@ -280,18 +315,24 @@ class KongManager:
             plugins = []
             if plugin_configs:
                 for plugin_config in plugin_configs:
-                    plugin = await self.enable_plugin(service_config.name, plugin_config)
+                    plugin = await self.enable_plugin(
+                        service_config.name, plugin_config
+                    )
                     plugins.append(plugin)
 
-            logger.info(f"✅ Complete service setup finished for '{service_config.name}'")
+            logger.info(
+                f"✅ Complete service setup finished for '{service_config.name}'"
+            )
 
             return {
                 "service": service,
                 "routes": routes,
                 "plugins": plugins,
-                "status": "success"
+                "status": "success",
             }
 
         except Exception as e:
-            logger.error(f"❌ Failed to setup complete service '{service_config.name}': {e}")
+            logger.error(
+                f"❌ Failed to setup complete service '{service_config.name}': {e}"
+            )
             raise

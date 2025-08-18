@@ -3,12 +3,14 @@ Kong Management API
 REST API endpoints for managing Kong services and routes
 """
 
-from fastapi import APIRouter, HTTPException, Depends
-from pydantic import BaseModel
-from typing import List, Dict, Any, Optional
 import logging
-from .kong_manager import KongManager, ServiceConfig, RouteConfig, PluginConfig
-from .casdoor_auth import get_current_user, CasdoorUser
+from typing import Any, Dict, List, Optional
+
+from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel
+
+from .casdoor_auth import CasdoorUser, get_current_user
+from .kong_manager import KongManager, PluginConfig, RouteConfig, ServiceConfig
 
 logger = logging.getLogger(__name__)
 
@@ -108,7 +110,7 @@ async def get_kong_manager() -> KongManager:
 async def create_service(
     request: ServiceCreateRequest,
     manager: KongManager = Depends(get_kong_manager),
-    current_user: CasdoorUser = Depends(get_current_user)
+    current_user: CasdoorUser = Depends(get_current_user),
 ):
     """Create a new Kong service"""
     try:
@@ -117,7 +119,9 @@ async def create_service(
         return service
     except ConnectionError as e:
         logger.error(f"Connection error creating service: {e}")
-        raise HTTPException(status_code=503, detail=f"Kong Admin API not accessible: {str(e)}")
+        raise HTTPException(
+            status_code=503, detail=f"Kong Admin API not accessible: {str(e)}"
+        )
     except TimeoutError as e:
         logger.error(f"Timeout error creating service: {e}")
         raise HTTPException(status_code=504, detail=f"Kong Admin API timeout: {str(e)}")
@@ -129,7 +133,7 @@ async def create_service(
 @router.get("/services", response_model=List[Dict[str, Any]])
 async def list_services(
     manager: KongManager = Depends(get_kong_manager),
-    current_user: CasdoorUser = Depends(get_current_user)
+    current_user: CasdoorUser = Depends(get_current_user),
 ):
     """List all Kong services"""
     try:
@@ -137,7 +141,9 @@ async def list_services(
         return services
     except ConnectionError as e:
         logger.error(f"Connection error listing services: {e}")
-        raise HTTPException(status_code=503, detail=f"Kong Admin API not accessible: {str(e)}")
+        raise HTTPException(
+            status_code=503, detail=f"Kong Admin API not accessible: {str(e)}"
+        )
     except TimeoutError as e:
         logger.error(f"Timeout error listing services: {e}")
         raise HTTPException(status_code=504, detail=f"Kong Admin API timeout: {str(e)}")
@@ -150,7 +156,7 @@ async def list_services(
 async def get_service(
     service_name: str,
     manager: KongManager = Depends(get_kong_manager),
-    current_user: CasdoorUser = Depends(get_current_user)
+    current_user: CasdoorUser = Depends(get_current_user),
 ):
     """Get a specific Kong service"""
     try:
@@ -160,7 +166,9 @@ async def get_service(
         raise HTTPException(status_code=404, detail=str(e))
     except ConnectionError as e:
         logger.error(f"Connection error getting service {service_name}: {e}")
-        raise HTTPException(status_code=503, detail=f"Kong Admin API not accessible: {str(e)}")
+        raise HTTPException(
+            status_code=503, detail=f"Kong Admin API not accessible: {str(e)}"
+        )
     except TimeoutError as e:
         logger.error(f"Timeout error getting service {service_name}: {e}")
         raise HTTPException(status_code=504, detail=f"Kong Admin API timeout: {str(e)}")
@@ -174,36 +182,46 @@ async def update_service(
     service_name: str,
     request: ServiceUpdateRequest,
     manager: KongManager = Depends(get_kong_manager),
-    current_user: CasdoorUser = Depends(get_current_user)
+    current_user: CasdoorUser = Depends(get_current_user),
 ):
     """Update a Kong service"""
     try:
         # Get current service to merge with updates
         current_service = await manager.get_service(service_name)
-        
+
         # Create service config with merged data
         update_data = request.model_dump(exclude_none=True)
         service_config = ServiceConfig(
             name=service_name,
             url=update_data.get("url", current_service.get("url", "")),
-            protocol=update_data.get("protocol", current_service.get("protocol", "http")),
+            protocol=update_data.get(
+                "protocol", current_service.get("protocol", "http")
+            ),
             host=update_data.get("host", current_service.get("host")),
             port=update_data.get("port", current_service.get("port")),
             path=update_data.get("path", current_service.get("path")),
             retries=update_data.get("retries", current_service.get("retries")),
-            connect_timeout=update_data.get("connect_timeout", current_service.get("connect_timeout")),
-            write_timeout=update_data.get("write_timeout", current_service.get("write_timeout")),
-            read_timeout=update_data.get("read_timeout", current_service.get("read_timeout")),
-            tags=update_data.get("tags", current_service.get("tags"))
+            connect_timeout=update_data.get(
+                "connect_timeout", current_service.get("connect_timeout")
+            ),
+            write_timeout=update_data.get(
+                "write_timeout", current_service.get("write_timeout")
+            ),
+            read_timeout=update_data.get(
+                "read_timeout", current_service.get("read_timeout")
+            ),
+            tags=update_data.get("tags", current_service.get("tags")),
         )
-        
+
         service = await manager.update_service(service_name, service_config)
         return service
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
     except ConnectionError as e:
         logger.error(f"Connection error updating service {service_name}: {e}")
-        raise HTTPException(status_code=503, detail=f"Kong Admin API not accessible: {str(e)}")
+        raise HTTPException(
+            status_code=503, detail=f"Kong Admin API not accessible: {str(e)}"
+        )
     except TimeoutError as e:
         logger.error(f"Timeout error updating service {service_name}: {e}")
         raise HTTPException(status_code=504, detail=f"Kong Admin API timeout: {str(e)}")
@@ -216,7 +234,7 @@ async def update_service(
 async def delete_service(
     service_name: str,
     manager: KongManager = Depends(get_kong_manager),
-    current_user: CasdoorUser = Depends(get_current_user)
+    current_user: CasdoorUser = Depends(get_current_user),
 ):
     """Delete a Kong service"""
     try:
@@ -226,7 +244,9 @@ async def delete_service(
         raise HTTPException(status_code=404, detail=str(e))
     except ConnectionError as e:
         logger.error(f"Connection error deleting service {service_name}: {e}")
-        raise HTTPException(status_code=503, detail=f"Kong Admin API not accessible: {str(e)}")
+        raise HTTPException(
+            status_code=503, detail=f"Kong Admin API not accessible: {str(e)}"
+        )
     except TimeoutError as e:
         logger.error(f"Timeout error deleting service {service_name}: {e}")
         raise HTTPException(status_code=504, detail=f"Kong Admin API timeout: {str(e)}")
@@ -240,7 +260,7 @@ async def delete_service(
 async def create_route(
     request: RouteCreateRequest,
     manager: KongManager = Depends(get_kong_manager),
-    current_user: CasdoorUser = Depends(get_current_user)
+    current_user: CasdoorUser = Depends(get_current_user),
 ):
     """Create a new Kong route"""
     try:
@@ -249,7 +269,9 @@ async def create_route(
         return route
     except ConnectionError as e:
         logger.error(f"Connection error creating route: {e}")
-        raise HTTPException(status_code=503, detail=f"Kong Admin API not accessible: {str(e)}")
+        raise HTTPException(
+            status_code=503, detail=f"Kong Admin API not accessible: {str(e)}"
+        )
     except TimeoutError as e:
         logger.error(f"Timeout error creating route: {e}")
         raise HTTPException(status_code=504, detail=f"Kong Admin API timeout: {str(e)}")
@@ -262,7 +284,7 @@ async def create_route(
 async def list_routes(
     service_name: Optional[str] = None,
     manager: KongManager = Depends(get_kong_manager),
-    current_user: CasdoorUser = Depends(get_current_user)
+    current_user: CasdoorUser = Depends(get_current_user),
 ):
     """List all Kong routes, optionally filtered by service"""
     try:
@@ -270,7 +292,9 @@ async def list_routes(
         return routes
     except ConnectionError as e:
         logger.error(f"Connection error listing routes: {e}")
-        raise HTTPException(status_code=503, detail=f"Kong Admin API not accessible: {str(e)}")
+        raise HTTPException(
+            status_code=503, detail=f"Kong Admin API not accessible: {str(e)}"
+        )
     except TimeoutError as e:
         logger.error(f"Timeout error listing routes: {e}")
         raise HTTPException(status_code=504, detail=f"Kong Admin API timeout: {str(e)}")
@@ -283,7 +307,7 @@ async def list_routes(
 async def get_route(
     route_name: str,
     manager: KongManager = Depends(get_kong_manager),
-    current_user: CasdoorUser = Depends(get_current_user)
+    current_user: CasdoorUser = Depends(get_current_user),
 ):
     """Get a specific Kong route"""
     try:
@@ -293,7 +317,9 @@ async def get_route(
         raise HTTPException(status_code=404, detail=str(e))
     except ConnectionError as e:
         logger.error(f"Connection error getting route {route_name}: {e}")
-        raise HTTPException(status_code=503, detail=f"Kong Admin API not accessible: {str(e)}")
+        raise HTTPException(
+            status_code=503, detail=f"Kong Admin API not accessible: {str(e)}"
+        )
     except TimeoutError as e:
         logger.error(f"Timeout error getting route {route_name}: {e}")
         raise HTTPException(status_code=504, detail=f"Kong Admin API timeout: {str(e)}")
@@ -307,13 +333,13 @@ async def update_route(
     route_name: str,
     request: RouteUpdateRequest,
     manager: KongManager = Depends(get_kong_manager),
-    current_user: CasdoorUser = Depends(get_current_user)
+    current_user: CasdoorUser = Depends(get_current_user),
 ):
     """Update a Kong route"""
     try:
         # Get current route to merge with updates
         current_route = await manager.get_route(route_name)
-        
+
         # Create route config with merged data
         update_data = request.model_dump(exclude_none=True)
         route_config = RouteConfig(
@@ -324,22 +350,35 @@ async def update_route(
             methods=update_data.get("methods", current_route.get("methods")),
             hosts=update_data.get("hosts", current_route.get("hosts")),
             headers=update_data.get("headers", current_route.get("headers")),
-            https_redirect_status_code=update_data.get("https_redirect_status_code", current_route.get("https_redirect_status_code")),
-            regex_priority=update_data.get("regex_priority", current_route.get("regex_priority")),
+            https_redirect_status_code=update_data.get(
+                "https_redirect_status_code",
+                current_route.get("https_redirect_status_code"),
+            ),
+            regex_priority=update_data.get(
+                "regex_priority", current_route.get("regex_priority")
+            ),
             strip_path=update_data.get("strip_path", current_route.get("strip_path")),
-            preserve_host=update_data.get("preserve_host", current_route.get("preserve_host")),
-            request_buffering=update_data.get("request_buffering", current_route.get("request_buffering")),
-            response_buffering=update_data.get("response_buffering", current_route.get("response_buffering")),
-            tags=update_data.get("tags", current_route.get("tags"))
+            preserve_host=update_data.get(
+                "preserve_host", current_route.get("preserve_host")
+            ),
+            request_buffering=update_data.get(
+                "request_buffering", current_route.get("request_buffering")
+            ),
+            response_buffering=update_data.get(
+                "response_buffering", current_route.get("response_buffering")
+            ),
+            tags=update_data.get("tags", current_route.get("tags")),
         )
-        
+
         route = await manager.update_route(route_name, route_config)
         return route
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
     except ConnectionError as e:
         logger.error(f"Connection error updating route {route_name}: {e}")
-        raise HTTPException(status_code=503, detail=f"Kong Admin API not accessible: {str(e)}")
+        raise HTTPException(
+            status_code=503, detail=f"Kong Admin API not accessible: {str(e)}"
+        )
     except TimeoutError as e:
         logger.error(f"Timeout error updating route {route_name}: {e}")
         raise HTTPException(status_code=504, detail=f"Kong Admin API timeout: {str(e)}")
@@ -352,7 +391,7 @@ async def update_route(
 async def delete_route(
     route_name: str,
     manager: KongManager = Depends(get_kong_manager),
-    current_user: CasdoorUser = Depends(get_current_user)
+    current_user: CasdoorUser = Depends(get_current_user),
 ):
     """Delete a Kong route"""
     try:
@@ -362,7 +401,9 @@ async def delete_route(
         raise HTTPException(status_code=404, detail=str(e))
     except ConnectionError as e:
         logger.error(f"Connection error deleting route {route_name}: {e}")
-        raise HTTPException(status_code=503, detail=f"Kong Admin API not accessible: {str(e)}")
+        raise HTTPException(
+            status_code=503, detail=f"Kong Admin API not accessible: {str(e)}"
+        )
     except TimeoutError as e:
         logger.error(f"Timeout error deleting route {route_name}: {e}")
         raise HTTPException(status_code=504, detail=f"Kong Admin API timeout: {str(e)}")
@@ -377,7 +418,7 @@ async def enable_plugin(
     service_name: str,
     request: PluginCreateRequest,
     manager: KongManager = Depends(get_kong_manager),
-    current_user: CasdoorUser = Depends(get_current_user)
+    current_user: CasdoorUser = Depends(get_current_user),
 ):
     """Enable a plugin on a service"""
     try:
@@ -388,7 +429,9 @@ async def enable_plugin(
         raise HTTPException(status_code=404, detail=str(e))
     except ConnectionError as e:
         logger.error(f"Connection error enabling plugin on service {service_name}: {e}")
-        raise HTTPException(status_code=503, detail=f"Kong Admin API not accessible: {str(e)}")
+        raise HTTPException(
+            status_code=503, detail=f"Kong Admin API not accessible: {str(e)}"
+        )
     except TimeoutError as e:
         logger.error(f"Timeout error enabling plugin on service {service_name}: {e}")
         raise HTTPException(status_code=504, detail=f"Kong Admin API timeout: {str(e)}")
@@ -401,7 +444,7 @@ async def enable_plugin(
 async def list_plugins(
     service_name: Optional[str] = None,
     manager: KongManager = Depends(get_kong_manager),
-    current_user: CasdoorUser = Depends(get_current_user)
+    current_user: CasdoorUser = Depends(get_current_user),
 ):
     """List all Kong plugins, optionally filtered by service"""
     try:
@@ -409,7 +452,9 @@ async def list_plugins(
         return plugins
     except ConnectionError as e:
         logger.error(f"Connection error listing plugins: {e}")
-        raise HTTPException(status_code=503, detail=f"Kong Admin API not accessible: {str(e)}")
+        raise HTTPException(
+            status_code=503, detail=f"Kong Admin API not accessible: {str(e)}"
+        )
     except TimeoutError as e:
         logger.error(f"Timeout error listing plugins: {e}")
         raise HTTPException(status_code=504, detail=f"Kong Admin API timeout: {str(e)}")
@@ -422,7 +467,7 @@ async def list_plugins(
 async def delete_plugin(
     plugin_id: str,
     manager: KongManager = Depends(get_kong_manager),
-    current_user: CasdoorUser = Depends(get_current_user)
+    current_user: CasdoorUser = Depends(get_current_user),
 ):
     """Delete a Kong plugin"""
     try:
@@ -430,7 +475,9 @@ async def delete_plugin(
         return result
     except ConnectionError as e:
         logger.error(f"Connection error deleting plugin {plugin_id}: {e}")
-        raise HTTPException(status_code=503, detail=f"Kong Admin API not accessible: {str(e)}")
+        raise HTTPException(
+            status_code=503, detail=f"Kong Admin API not accessible: {str(e)}"
+        )
     except TimeoutError as e:
         logger.error(f"Timeout error deleting plugin {plugin_id}: {e}")
         raise HTTPException(status_code=504, detail=f"Kong Admin API timeout: {str(e)}")
@@ -444,7 +491,7 @@ async def delete_plugin(
 async def get_service_health(
     service_name: str,
     manager: KongManager = Depends(get_kong_manager),
-    current_user: CasdoorUser = Depends(get_current_user)
+    current_user: CasdoorUser = Depends(get_current_user),
 ):
     """Get health information for a service"""
     try:
@@ -452,7 +499,9 @@ async def get_service_health(
         return ServiceHealthResponse(**health)
     except ConnectionError as e:
         logger.error(f"Connection error getting health for service {service_name}: {e}")
-        raise HTTPException(status_code=503, detail=f"Kong Admin API not accessible: {str(e)}")
+        raise HTTPException(
+            status_code=503, detail=f"Kong Admin API not accessible: {str(e)}"
+        )
     except TimeoutError as e:
         logger.error(f"Timeout error getting health for service {service_name}: {e}")
         raise HTTPException(status_code=504, detail=f"Kong Admin API timeout: {str(e)}")
@@ -466,22 +515,28 @@ async def get_service_health(
 async def setup_complete_service(
     request: CompleteServiceRequest,
     manager: KongManager = Depends(get_kong_manager),
-    current_user: CasdoorUser = Depends(get_current_user)
+    current_user: CasdoorUser = Depends(get_current_user),
 ):
     """Set up a complete service with routes and plugins"""
     try:
         service_config = ServiceConfig(**request.service.model_dump())
         route_configs = [RouteConfig(**route.model_dump()) for route in request.routes]
         plugin_configs = None
-        
+
         if request.plugins:
-            plugin_configs = [PluginConfig(**plugin.model_dump()) for plugin in request.plugins]
-        
-        result = await manager.setup_complete_service(service_config, route_configs, plugin_configs)
+            plugin_configs = [
+                PluginConfig(**plugin.model_dump()) for plugin in request.plugins
+            ]
+
+        result = await manager.setup_complete_service(
+            service_config, route_configs, plugin_configs
+        )
         return result
     except ConnectionError as e:
         logger.error(f"Connection error setting up complete service: {e}")
-        raise HTTPException(status_code=503, detail=f"Kong Admin API not accessible: {str(e)}")
+        raise HTTPException(
+            status_code=503, detail=f"Kong Admin API not accessible: {str(e)}"
+        )
     except TimeoutError as e:
         logger.error(f"Timeout error setting up complete service: {e}")
         raise HTTPException(status_code=504, detail=f"Kong Admin API timeout: {str(e)}")
@@ -494,7 +549,7 @@ async def setup_complete_service(
 @router.get("/status")
 async def kong_status(
     manager: KongManager = Depends(get_kong_manager),
-    current_user: CasdoorUser = Depends(get_current_user)
+    current_user: CasdoorUser = Depends(get_current_user),
 ):
     """Get Kong API status"""
     try:
@@ -503,7 +558,7 @@ async def kong_status(
         return {
             "status": "healthy",
             "kong_admin_url": manager.admin_url,
-            "services_count": len(services)
+            "services_count": len(services),
         }
     except ConnectionError as e:
         logger.error(f"Kong connection error: {e}")
@@ -511,7 +566,7 @@ async def kong_status(
             "status": "unhealthy",
             "kong_admin_url": manager.admin_url,
             "error": f"Connection failed: {str(e)}",
-            "error_type": "connection"
+            "error_type": "connection",
         }
     except TimeoutError as e:
         logger.error(f"Kong timeout error: {e}")
@@ -519,7 +574,7 @@ async def kong_status(
             "status": "unhealthy",
             "kong_admin_url": manager.admin_url,
             "error": f"Timeout: {str(e)}",
-            "error_type": "timeout"
+            "error_type": "timeout",
         }
     except Exception as e:
         logger.error(f"Kong status check failed: {e}")
@@ -527,5 +582,5 @@ async def kong_status(
             "status": "unhealthy",
             "kong_admin_url": manager.admin_url,
             "error": str(e),
-            "error_type": "unknown"
-        } 
+            "error_type": "unknown",
+        }

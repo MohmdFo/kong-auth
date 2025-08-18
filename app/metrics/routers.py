@@ -12,7 +12,7 @@ router = APIRouter()
 def get_metrics():
     """
     Prometheus metrics endpoint for Kong Auth Service.
-    
+
     Returns metrics in Prometheus format including:
     - Request counts and durations
     - Authentication success/failure rates

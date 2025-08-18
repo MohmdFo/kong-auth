@@ -13,7 +13,7 @@ Metrics are organized into categories:
 - Casdoor integration metrics: Casdoor authentication success/failure
 """
 
-from prometheus_client import CollectorRegistry, Counter, Histogram, Gauge
+from prometheus_client import CollectorRegistry, Counter, Gauge, Histogram
 
 # Create a dedicated registry for your metrics
 registry = CollectorRegistry()
