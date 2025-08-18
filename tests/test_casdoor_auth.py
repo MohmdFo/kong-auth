@@ -4,17 +4,19 @@ Test script for Casdoor authentication
 This script demonstrates how to use the API with Casdoor authentication
 """
 
-import requests
 import json
 import sys
+
+import requests
 
 # Configuration
 BASE_URL = "http://localhost:8000"  # Adjust if your service runs on a different port
 
+
 def test_without_auth():
     """Test endpoints without authentication (should fail)"""
     print("=== Testing without authentication ===")
-    
+
     # Test root endpoint (should work - no auth required)
     try:
         response = requests.get(f"{BASE_URL}/")
@@ -23,7 +25,7 @@ def test_without_auth():
             print(f"Response: {response.json()}")
     except Exception as e:
         print(f"Error: {e}")
-    
+
     # Test protected endpoint (should fail)
     try:
         response = requests.get(f"{BASE_URL}/me")
@@ -34,7 +36,7 @@ def test_without_auth():
             print(f"❌ Unexpected response: {response.text}")
     except Exception as e:
         print(f"Error: {e}")
-    
+
     # Test consumer list (should fail)
     try:
         response = requests.get(f"{BASE_URL}/consumers")
@@ -46,15 +48,13 @@ def test_without_auth():
     except Exception as e:
         print(f"Error: {e}")
 
+
 def test_with_auth(token):
     """Test endpoints with authentication"""
     print(f"\n=== Testing with authentication ===")
-    
-    headers = {
-        "Authorization": f"Bearer {token}",
-        "Content-Type": "application/json"
-    }
-    
+
+    headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
+
     # Test getting current user info
     try:
         response = requests.get(f"{BASE_URL}/me", headers=headers)
@@ -69,7 +69,7 @@ def test_with_auth(token):
             print(f"❌ Failed to get user info: {response.text}")
     except Exception as e:
         print(f"Error: {e}")
-    
+
     # Test listing consumers
     try:
         response = requests.get(f"{BASE_URL}/consumers", headers=headers)
@@ -81,15 +81,13 @@ def test_with_auth(token):
             print(f"❌ Failed to list consumers: {response.text}")
     except Exception as e:
         print(f"Error: {e}")
-    
+
     # Test creating a consumer
     try:
-        consumer_data = {
-            "username": f"test_user_{int(time.time())}"
-        }
-        response = requests.post(f"{BASE_URL}/create-consumer", 
-                               headers=headers, 
-                               json=consumer_data)
+        consumer_data = {"username": f"test_user_{int(time.time())}"}
+        response = requests.post(
+            f"{BASE_URL}/create-consumer", headers=headers, json=consumer_data
+        )
         print(f"POST /create-consumer - Status: {response.status_code}")
         if response.status_code == 200:
             result = response.json()
@@ -100,14 +98,15 @@ def test_with_auth(token):
     except Exception as e:
         print(f"Error: {e}")
 
+
 def main():
     """Main test function"""
     print("Casdoor Authentication Test")
     print("=" * 50)
-    
+
     # Test without authentication
     test_without_auth()
-    
+
     # Test with authentication (if token provided)
     if len(sys.argv) > 1:
         token = sys.argv[1]
@@ -122,6 +121,8 @@ def main():
         print("3. Copy the access token")
         print("4. Use it as an argument to this script")
 
+
 if __name__ == "__main__":
     import time
-    main() 
+
+    main()

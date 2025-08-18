@@ -4,15 +4,18 @@ Test script for the Kong Auth Service API
 """
 
 import asyncio
-import httpx
 import json
 import logging
+
+import httpx
+
 from app.logging_config import setup_logging
 
 # Setup logging
 logger = setup_logging()
 
 BASE_URL = "http://localhost:8000"
+
 
 async def test_api():
     async with httpx.AsyncClient() as client:
@@ -29,15 +32,11 @@ async def test_api():
 
         # Test creating a consumer
         logger.info("2. Testing consumer creation...")
-        consumer_data = {
-            "username": "testuser123",
-            "custom_id": "test-custom-id"
-        }
+        consumer_data = {"username": "testuser123", "custom_id": "test-custom-id"}
 
         try:
             response = await client.post(
-                f"{BASE_URL}/create-consumer",
-                json=consumer_data
+                f"{BASE_URL}/create-consumer", json=consumer_data
             )
             logger.info(f"Status: {response.status_code}")
             if response.status_code == 200:
@@ -48,7 +47,7 @@ async def test_api():
                 logger.info(f"Secret: {result['secret'][:20]}...")
 
                 # Store consumer ID for later tests
-                consumer_id = result['consumer_id']
+                consumer_id = result["consumer_id"]
             else:
                 logger.error(f"Error: {response.text}")
                 return
@@ -65,7 +64,9 @@ async def test_api():
                 consumers = response.json()
                 logger.info(f"Found {len(consumers)} consumers")
                 for consumer in consumers:
-                    logger.info(f"  - {consumer.get('username', 'N/A')} (ID: {consumer.get('id', 'N/A')})")
+                    logger.info(
+                        f"  - {consumer.get('username', 'N/A')} (ID: {consumer.get('id', 'N/A')})"
+                    )
             else:
                 logger.error(f"Error: {response.text}")
         except Exception as e:
@@ -88,8 +89,7 @@ async def test_api():
         logger.info("5. Testing duplicate consumer creation...")
         try:
             response = await client.post(
-                f"{BASE_URL}/create-consumer",
-                json=consumer_data
+                f"{BASE_URL}/create-consumer", json=consumer_data
             )
             logger.info(f"Status: {response.status_code}")
             if response.status_code == 200:
@@ -103,5 +103,6 @@ async def test_api():
 
         logger.info("API testing completed!")
 
+
 if __name__ == "__main__":
-    asyncio.run(test_api()) 
+    asyncio.run(test_api())
