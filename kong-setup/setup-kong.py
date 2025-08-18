@@ -4,13 +4,14 @@ Kong Setup Script
 Automatically creates services and routes in Kong for testing JWT authentication
 """
 
-import httpx
 import asyncio
 import json
+import logging
 import os
 import sys
-import logging
-from typing import Dict, Any
+from typing import Any, Dict
+
+import httpx
 
 # Add parent directory to path to import logging_config
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -23,23 +24,19 @@ logger = setup_logging()
 KONG_ADMIN_URL = os.getenv("KONG_ADMIN_URL", "http://localhost:8006")
 SAMPLE_SERVICE_URL = os.getenv("SAMPLE_SERVICE_URL", "http://localhost:8001")
 
+
 class KongSetup:
     def __init__(self, admin_url: str):
-        self.admin_url = admin_url.rstrip('/')
+        self.admin_url = admin_url.rstrip("/")
 
     async def create_service(self, name: str, url: str) -> Dict[str, Any]:
         """Create a service in Kong"""
         async with httpx.AsyncClient() as client:
-            service_data = {
-                "name": name,
-                "url": url,
-                "protocol": "http"
-            }
-            
+            service_data = {"name": name, "url": url, "protocol": "http"}
+
             try:
                 response = await client.post(
-                    f"{self.admin_url}/services/",
-                    json=service_data
+                    f"{self.admin_url}/services/", json=service_data
                 )
                 response.raise_for_status()
                 service = response.json()
@@ -54,25 +51,28 @@ class KongSetup:
                     logger.info(f"ℹ️  Service '{name}' already exists")
                     return service
                 else:
-                    logger.error(f"❌ Failed to create service '{name}': {e.response.text}")
+                    logger.error(
+                        f"❌ Failed to create service '{name}': {e.response.text}"
+                    )
                     raise
 
-    async def create_route(self, service_name: str, name: str, paths: list, methods: list = None) -> Dict[str, Any]:
+    async def create_route(
+        self, service_name: str, name: str, paths: list, methods: list = None
+    ) -> Dict[str, Any]:
         """Create a route in Kong"""
         async with httpx.AsyncClient() as client:
             route_data = {
                 "name": name,
                 "paths": paths,
-                "service": {"name": service_name}
+                "service": {"name": service_name},
             }
-            
+
             if methods:
                 route_data["methods"] = methods
-            
+
             try:
                 response = await client.post(
-                    f"{self.admin_url}/routes/",
-                    json=route_data
+                    f"{self.admin_url}/routes/", json=route_data
                 )
                 response.raise_for_status()
                 route = response.json()
@@ -87,7 +87,9 @@ class KongSetup:
                     logger.info(f"ℹ️  Route '{name}' already exists")
                     return route
                 else:
-                    logger.error(f"❌ Failed to create route '{name}': {e.response.text}")
+                    logger.error(
+                        f"❌ Failed to create route '{name}': {e.response.text}"
+                    )
                     raise
 
     async def enable_jwt_plugin(self, service_name: str) -> Dict[str, Any]:
@@ -104,14 +106,14 @@ class KongSetup:
                     "anonymous": None,
                     "run_on_preflight": True,
                     "maximum_expiration": 31536000,
-                    "header_names": ["authorization"]
-                }
+                    "header_names": ["authorization"],
+                },
             }
-            
+
             try:
                 response = await client.post(
                     f"{self.admin_url}/services/{service_name}/plugins",
-                    json=plugin_data
+                    json=plugin_data,
                 )
                 response.raise_for_status()
                 plugin = response.json()
@@ -119,7 +121,9 @@ class KongSetup:
                 return plugin
             except httpx.HTTPStatusError as e:
                 if e.response.status_code == 409:
-                    logger.info(f"ℹ️  JWT plugin already enabled on service '{service_name}'")
+                    logger.info(
+                        f"ℹ️  JWT plugin already enabled on service '{service_name}'"
+                    )
                     return {"message": "Plugin already exists"}
                 else:
                     logger.error(f"❌ Failed to enable JWT plugin: {e.response.text}")
@@ -137,14 +141,14 @@ class KongSetup:
                     "exposed_headers": ["X-Consumer-ID", "X-Consumer-Username"],
                     "credentials": True,
                     "max_age": 3600,
-                    "preflight_continue": False
-                }
+                    "preflight_continue": False,
+                },
             }
-            
+
             try:
                 response = await client.post(
                     f"{self.admin_url}/services/{service_name}/plugins",
-                    json=plugin_data
+                    json=plugin_data,
                 )
                 response.raise_for_status()
                 plugin = response.json()
@@ -152,7 +156,9 @@ class KongSetup:
                 return plugin
             except httpx.HTTPStatusError as e:
                 if e.response.status_code == 409:
-                    logger.info(f"ℹ️  CORS plugin already enabled on service '{service_name}'")
+                    logger.info(
+                        f"ℹ️  CORS plugin already enabled on service '{service_name}'"
+                    )
                     return {"message": "Plugin already exists"}
                 else:
                     logger.error(f"❌ Failed to enable CORS plugin: {e.response.text}")
@@ -164,45 +170,45 @@ class KongSetup:
         logger.info(f"Kong Admin URL: {self.admin_url}")
         logger.info(f"Sample Service URL: {SAMPLE_SERVICE_URL}")
         logger.info("-" * 50)
-        
+
         try:
             # Create service
             service = await self.create_service("sample-service", SAMPLE_SERVICE_URL)
-            
+
             # Create routes
             routes = []
-            
+
             # Main route
             main_route = await self.create_route(
                 service_name="sample-service",
                 name="sample-service-main",
                 paths=["/sample"],
-                methods=["GET", "POST", "OPTIONS"]
+                methods=["GET", "POST", "OPTIONS"],
             )
             routes.append(main_route)
-            
+
             # API route
             api_route = await self.create_route(
                 service_name="sample-service",
                 name="sample-service-api",
                 paths=["/sample/api"],
-                methods=["GET", "POST", "OPTIONS"]
+                methods=["GET", "POST", "OPTIONS"],
             )
             routes.append(api_route)
-            
+
             # Status route
             status_route = await self.create_route(
                 service_name="sample-service",
                 name="sample-service-status",
                 paths=["/sample/status"],
-                methods=["GET", "OPTIONS"]
+                methods=["GET", "OPTIONS"],
             )
             routes.append(status_route)
-            
+
             # Enable plugins
             await self.enable_jwt_plugin("sample-service")
             await self.enable_cors_plugin("sample-service")
-            
+
             logger.info("✅ Kong setup completed successfully!")
             logger.info("📋 Available endpoints:")
             logger.info(f"  Kong Gateway: http://localhost:8000")
@@ -212,12 +218,9 @@ class KongSetup:
             logger.info(f"    GET       http://localhost:8000/sample/status")
             logger.info(f"🔐 All endpoints require JWT authentication")
             logger.info(f"📝 Use your auth service to get JWT tokens")
-            
-            return {
-                "service": service,
-                "routes": routes
-            }
-            
+
+            return {"service": service, "routes": routes}
+
         except Exception as e:
             logger.error(f"❌ Setup failed: {e}")
             raise
@@ -225,15 +228,15 @@ class KongSetup:
     async def cleanup(self):
         """Clean up Kong configuration"""
         logger.info("🧹 Cleaning up Kong configuration...")
-        
+
         async with httpx.AsyncClient() as client:
             # Delete routes
             routes_to_delete = [
                 "sample-service-main",
-                "sample-service-api", 
-                "sample-service-status"
+                "sample-service-api",
+                "sample-service-status",
             ]
-            
+
             for route_name in routes_to_delete:
                 try:
                     await client.delete(f"{self.admin_url}/routes/{route_name}")
@@ -242,8 +245,10 @@ class KongSetup:
                     if e.response.status_code == 404:
                         logger.info(f"ℹ️  Route '{route_name}' not found")
                     else:
-                        logger.error(f"❌ Failed to delete route '{route_name}': {e.response.text}")
-            
+                        logger.error(
+                            f"❌ Failed to delete route '{route_name}': {e.response.text}"
+                        )
+
             # Delete service
             try:
                 await client.delete(f"{self.admin_url}/services/sample-service")
@@ -254,14 +259,19 @@ class KongSetup:
                 else:
                     logger.error(f"❌ Failed to delete service: {e.response.text}")
 
+
 async def main():
     """Main function"""
     import argparse
-    
+
     parser = argparse.ArgumentParser(description="Kong Setup Script")
-    parser.add_argument("--cleanup", action="store_true", help="Clean up Kong configuration")
+    parser.add_argument(
+        "--cleanup", action="store_true", help="Clean up Kong configuration"
+    )
     parser.add_argument("--admin-url", default=KONG_ADMIN_URL, help="Kong Admin URL")
-    parser.add_argument("--service-url", default=SAMPLE_SERVICE_URL, help="Sample service URL")
+    parser.add_argument(
+        "--service-url", default=SAMPLE_SERVICE_URL, help="Sample service URL"
+    )
 
     args = parser.parse_args()
 
@@ -276,5 +286,6 @@ async def main():
     else:
         await kong_setup.setup_sample_service()
 
+
 if __name__ == "__main__":
-    asyncio.run(main()) 
+    asyncio.run(main())

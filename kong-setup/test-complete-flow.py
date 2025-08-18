@@ -5,12 +5,13 @@ Tests the entire flow: create consumer -> get JWT token -> access protected serv
 """
 
 import asyncio
-import httpx
 import json
-import time
+import logging
 import os
 import sys
-import logging
+import time
+
+import httpx
 
 # Add parent directory to path to import logging_config
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -23,6 +24,7 @@ logger = setup_logging()
 AUTH_SERVICE_URL = "http://localhost:8000"
 KONG_GATEWAY_URL = "http://localhost:8000"
 SAMPLE_SERVICE_URL = "http://localhost:8001"
+
 
 class CompleteFlowTest:
     def __init__(self):
@@ -47,13 +49,12 @@ class CompleteFlowTest:
             # Test consumer creation
             consumer_data = {
                 "username": "testuser_complete_flow",
-                "custom_id": "test_custom_id_123"
+                "custom_id": "test_custom_id_123",
             }
 
             try:
                 response = await client.post(
-                    f"{self.auth_service_url}/create-consumer",
-                    json=consumer_data
+                    f"{self.auth_service_url}/create-consumer", json=consumer_data
                 )
                 response.raise_for_status()
                 result = response.json()
@@ -62,8 +63,8 @@ class CompleteFlowTest:
                 logger.info(f"✅ JWT Token generated: {result['token'][:50]}...")
                 logger.info(f"✅ Token expires: {result['expires_at']}")
 
-                return result['token']
-                
+                return result["token"]
+
             except Exception as e:
                 logger.error(f"❌ Failed to create consumer: {e}")
                 return None
@@ -95,11 +96,7 @@ class CompleteFlowTest:
         logger.info("-" * 40)
 
         async with httpx.AsyncClient() as client:
-            endpoints = [
-                "/sample",
-                "/sample/api",
-                "/sample/status"
-            ]
+            endpoints = ["/sample", "/sample/api", "/sample/status"]
 
             for endpoint in endpoints:
                 try:
@@ -115,7 +112,7 @@ class CompleteFlowTest:
 
         headers = {
             "Authorization": f"Bearer {jwt_token}",
-            "Content-Type": "application/json"
+            "Content-Type": "application/json",
         }
 
         async with httpx.AsyncClient() as client:
@@ -123,24 +120,29 @@ class CompleteFlowTest:
             get_endpoints = [
                 ("/sample", "Main endpoint"),
                 ("/sample/api", "API endpoint"),
-                ("/sample/status", "Status endpoint")
+                ("/sample/status", "Status endpoint"),
             ]
 
             for endpoint, description in get_endpoints:
                 try:
                     response = await client.get(
-                        f"{self.kong_gateway_url}{endpoint}",
-                        headers=headers
+                        f"{self.kong_gateway_url}{endpoint}", headers=headers
                     )
 
                     if response.status_code == 200:
                         result = response.json()
                         logger.info(f"✅ {description}: {response.status_code}")
                         logger.info(f"   Message: {result.get('message', 'N/A')}")
-                        logger.info(f"   Kong Consumer ID: {result.get('kong_headers', {}).get('x_consumer_id', 'N/A')}")
-                        logger.info(f"   Kong Username: {result.get('kong_headers', {}).get('x_consumer_username', 'N/A')}")
+                        logger.info(
+                            f"   Kong Consumer ID: {result.get('kong_headers', {}).get('x_consumer_id', 'N/A')}"
+                        )
+                        logger.info(
+                            f"   Kong Username: {result.get('kong_headers', {}).get('x_consumer_username', 'N/A')}"
+                        )
                     else:
-                        logger.error(f"❌ {description}: {response.status_code} - {response.text}")
+                        logger.error(
+                            f"❌ {description}: {response.status_code} - {response.text}"
+                        )
 
                 except Exception as e:
                     logger.error(f"❌ {description}: Error - {e}")
@@ -150,13 +152,13 @@ class CompleteFlowTest:
                 post_data = {
                     "test": "data",
                     "timestamp": time.time(),
-                    "message": "Hello from test script!"
+                    "message": "Hello from test script!",
                 }
 
                 response = await client.post(
                     f"{self.kong_gateway_url}/sample/api",
                     headers=headers,
-                    json=post_data
+                    json=post_data,
                 )
 
                 if response.status_code == 200:
@@ -164,7 +166,9 @@ class CompleteFlowTest:
                     logger.info(f"✅ POST /sample/api: {response.status_code}")
                     logger.info(f"   Received body: {result.get('body', {})}")
                 else:
-                    logger.error(f"❌ POST /sample/api: {response.status_code} - {response.text}")
+                    logger.error(
+                        f"❌ POST /sample/api: {response.status_code} - {response.text}"
+                    )
 
             except Exception as e:
                 logger.error(f"❌ POST /sample/api: Error - {e}")
@@ -177,7 +181,7 @@ class CompleteFlowTest:
         invalid_tokens = [
             "invalid.token.here",
             "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6iJV_adQssw5c",
-            ""
+            "",
         ]
 
         async with httpx.AsyncClient() as client:
@@ -186,10 +190,11 @@ class CompleteFlowTest:
 
                 try:
                     response = await client.get(
-                        f"{self.kong_gateway_url}/sample/status",
-                        headers=headers
+                        f"{self.kong_gateway_url}/sample/status", headers=headers
                     )
-                    logger.info(f"❌ Invalid token {i}: {response.status_code} (should be 401)")
+                    logger.info(
+                        f"❌ Invalid token {i}: {response.status_code} (should be 401)"
+                    )
                 except Exception as e:
                     logger.error(f"❌ Invalid token {i}: Error - {e}")
 
@@ -227,14 +232,18 @@ class CompleteFlowTest:
         logger.info("  - JWT validation: ✅ Working")
         logger.info(f"🔑 Valid JWT Token: {jwt_token[:50]}...")
         logger.info(f"🌐 Test protected endpoints:")
-        logger.info(f"   curl -H 'Authorization: Bearer {jwt_token}' {self.kong_gateway_url}/sample/status")
+        logger.info(
+            f"   curl -H 'Authorization: Bearer {jwt_token}' {self.kong_gateway_url}/sample/status"
+        )
 
         return True
+
 
 async def main():
     """Main function"""
     test = CompleteFlowTest()
     await test.run_complete_test()
 
+
 if __name__ == "__main__":
-    asyncio.run(main()) 
+    asyncio.run(main())

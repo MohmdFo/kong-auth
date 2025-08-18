@@ -4,13 +4,13 @@ Sample service for testing Kong JWT authentication
 This is a simple HTTP server that Kong will proxy requests to
 """
 
-from http.server import HTTPServer, BaseHTTPRequestHandler
 import json
-import time
 import logging
-import sys
 import os
-from urllib.parse import urlparse, parse_qs
+import sys
+import time
+from http.server import BaseHTTPRequestHandler, HTTPServer
+from urllib.parse import parse_qs, urlparse
 
 # Add parent directory to path to import logging_config
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -18,6 +18,7 @@ from app.logging_config import setup_logging
 
 # Setup logging
 logger = setup_logging()
+
 
 class SampleServiceHandler(BaseHTTPRequestHandler):
     def do_GET(self):
@@ -30,10 +31,12 @@ class SampleServiceHandler(BaseHTTPRequestHandler):
         headers = dict(self.headers)
 
         self.send_response(200)
-        self.send_header('Content-type', 'application/json')
-        self.send_header('Access-Control-Allow-Origin', '*')
-        self.send_header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
-        self.send_header('Access-Control-Allow-Headers', 'Content-Type, Authorization')
+        self.send_header("Content-type", "application/json")
+        self.send_header("Access-Control-Allow-Origin", "*")
+        self.send_header(
+            "Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS"
+        )
+        self.send_header("Access-Control-Allow-Headers", "Content-Type, Authorization")
         self.end_headers()
 
         response_data = {
@@ -43,36 +46,42 @@ class SampleServiceHandler(BaseHTTPRequestHandler):
             "method": "GET",
             "query_params": query_params,
             "headers": {
-                "user_agent": headers.get('User-Agent', 'Unknown'),
-                "content_type": headers.get('Content-Type', 'None'),
-                "authorization": "Bearer ***" if headers.get('Authorization') else "None"
+                "user_agent": headers.get("User-Agent", "Unknown"),
+                "content_type": headers.get("Content-Type", "None"),
+                "authorization": "Bearer ***"
+                if headers.get("Authorization")
+                else "None",
             },
             "kong_headers": {
-                "x_consumer_id": headers.get('X-Consumer-ID', 'None'),
-                "x_consumer_username": headers.get('X-Consumer-Username', 'None'),
-                "x_authenticated_consumer": headers.get('X-Authenticated-Consumer', 'None')
-            }
+                "x_consumer_id": headers.get("X-Consumer-ID", "None"),
+                "x_consumer_username": headers.get("X-Consumer-Username", "None"),
+                "x_authenticated_consumer": headers.get(
+                    "X-Authenticated-Consumer", "None"
+                ),
+            },
         }
 
         self.wfile.write(json.dumps(response_data, indent=2).encode())
 
     def do_POST(self):
         """Handle POST requests"""
-        content_length = int(self.headers.get('Content-Length', 0))
-        post_data = self.rfile.read(content_length) if content_length > 0 else b''
+        content_length = int(self.headers.get("Content-Length", 0))
+        post_data = self.rfile.read(content_length) if content_length > 0 else b""
 
         try:
-            body = json.loads(post_data.decode('utf-8')) if post_data else {}
+            body = json.loads(post_data.decode("utf-8")) if post_data else {}
         except json.JSONDecodeError:
             body = {"error": "Invalid JSON"}
 
         headers = dict(self.headers)
 
         self.send_response(200)
-        self.send_header('Content-type', 'application/json')
-        self.send_header('Access-Control-Allow-Origin', '*')
-        self.send_header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
-        self.send_header('Access-Control-Allow-Headers', 'Content-Type, Authorization')
+        self.send_header("Content-type", "application/json")
+        self.send_header("Access-Control-Allow-Origin", "*")
+        self.send_header(
+            "Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS"
+        )
+        self.send_header("Access-Control-Allow-Headers", "Content-Type, Authorization")
         self.end_headers()
 
         response_data = {
@@ -82,15 +91,19 @@ class SampleServiceHandler(BaseHTTPRequestHandler):
             "method": "POST",
             "body": body,
             "headers": {
-                "user_agent": headers.get('User-Agent', 'Unknown'),
-                "content_type": headers.get('Content-Type', 'None'),
-                "authorization": "Bearer ***" if headers.get('Authorization') else "None"
+                "user_agent": headers.get("User-Agent", "Unknown"),
+                "content_type": headers.get("Content-Type", "None"),
+                "authorization": "Bearer ***"
+                if headers.get("Authorization")
+                else "None",
             },
             "kong_headers": {
-                "x_consumer_id": headers.get('X-Consumer-ID', 'None'),
-                "x_consumer_username": headers.get('X-Consumer-Username', 'None'),
-                "x_authenticated_consumer": headers.get('X-Authenticated-Consumer', 'None')
-            }
+                "x_consumer_id": headers.get("X-Consumer-ID", "None"),
+                "x_consumer_username": headers.get("X-Consumer-Username", "None"),
+                "x_authenticated_consumer": headers.get(
+                    "X-Authenticated-Consumer", "None"
+                ),
+            },
         }
 
         self.wfile.write(json.dumps(response_data, indent=2).encode())
@@ -98,18 +111,21 @@ class SampleServiceHandler(BaseHTTPRequestHandler):
     def do_OPTIONS(self):
         """Handle CORS preflight requests"""
         self.send_response(200)
-        self.send_header('Access-Control-Allow-Origin', '*')
-        self.send_header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
-        self.send_header('Access-Control-Allow-Headers', 'Content-Type, Authorization')
+        self.send_header("Access-Control-Allow-Origin", "*")
+        self.send_header(
+            "Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS"
+        )
+        self.send_header("Access-Control-Allow-Headers", "Content-Type, Authorization")
         self.end_headers()
 
     def log_message(self, format, *args):
         """Custom logging to show requests"""
         logger.info(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] {format % args}")
 
+
 def run_server(port=8001):
     """Run the sample service server"""
-    server_address = ('', port)
+    server_address = ("", port)
     httpd = HTTPServer(server_address, SampleServiceHandler)
     logger.info(f"Sample service running on http://localhost:{port}")
     logger.info("Available endpoints:")
@@ -123,5 +139,6 @@ def run_server(port=8001):
         logger.info("Shutting down server...")
         httpd.server_close()
 
+
 if __name__ == "__main__":
-    run_server() 
+    run_server()

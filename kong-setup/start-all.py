@@ -5,13 +5,13 @@ Starts the auth service, sample service, and sets up Kong automatically
 """
 
 import asyncio
-import subprocess
-import time
-import sys
+import logging
 import os
 import signal
+import subprocess
+import sys
 import threading
-import logging
+import time
 from pathlib import Path
 
 # Add parent directory to path to import logging_config
@@ -20,6 +20,7 @@ from app.logging_config import setup_logging
 
 # Setup logging
 logger = setup_logging()
+
 
 class ServiceManager:
     def __init__(self):
@@ -37,7 +38,7 @@ class ServiceManager:
                 cwd=parent_dir,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
-                text=True
+                text=True,
             )
             self.processes.append(("Auth Service", process))
             logger.info("✅ Auth Service started")
@@ -45,7 +46,7 @@ class ServiceManager:
         except Exception as e:
             logger.error(f"❌ Failed to start Auth Service: {e}")
             return False
-    
+
     def start_sample_service(self):
         """Start the sample service"""
         logger.info("🚀 Starting Sample Service...")
@@ -55,7 +56,7 @@ class ServiceManager:
                 cwd=Path(__file__).parent,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
-                text=True
+                text=True,
             )
             self.processes.append(("Sample Service", process))
             logger.info("✅ Sample Service started")
@@ -63,16 +64,17 @@ class ServiceManager:
         except Exception as e:
             logger.error(f"❌ Failed to start Sample Service: {e}")
             return False
-    
+
     async def setup_kong(self):
         """Set up Kong configuration"""
         logger.info("🚀 Setting up Kong...")
         try:
             process = await asyncio.create_subprocess_exec(
-                sys.executable, "setup-kong.py",
+                sys.executable,
+                "setup-kong.py",
                 cwd=Path(__file__).parent,
                 stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE
+                stderr=asyncio.subprocess.PIPE,
             )
             stdout, stderr = await process.communicate()
 
@@ -151,7 +153,7 @@ class ServiceManager:
         """Run all services"""
         logger.info("🎯 Starting Kong Auth Test Environment")
         logger.info("=" * 50)
-        
+
         # Set up signal handlers
         signal.signal(signal.SIGINT, self.signal_handler)
         signal.signal(signal.SIGTERM, self.signal_handler)
@@ -186,8 +188,12 @@ class ServiceManager:
             logger.info("🧪 Test the complete flow:")
             logger.info("  python test-complete-flow.py")
             logger.info("📝 Manual testing:")
-            logger.info("  1. Create consumer: curl -X POST http://localhost:8000/create-consumer -H 'Content-Type: application/json' -d '{\"username\": \"testuser\"}'")
-            logger.info("  2. Use token: curl -H 'Authorization: Bearer YOUR_TOKEN' http://localhost:8000/sample/status")
+            logger.info(
+                "  1. Create consumer: curl -X POST http://localhost:8000/create-consumer -H 'Content-Type: application/json' -d '{\"username\": \"testuser\"}'"
+            )
+            logger.info(
+                "  2. Use token: curl -H 'Authorization: Bearer YOUR_TOKEN' http://localhost:8000/sample/status"
+            )
             logger.info("Press Ctrl+C to stop all services")
             logger.info("=" * 50)
 
@@ -204,10 +210,12 @@ class ServiceManager:
 
         return True
 
+
 async def main():
     """Main function"""
     manager = ServiceManager()
     await manager.run()
 
+
 if __name__ == "__main__":
-    asyncio.run(main()) 
+    asyncio.run(main())
