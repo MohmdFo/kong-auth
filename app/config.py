@@ -53,6 +53,7 @@ class Settings(BaseSettings):
     LOG_LEVEL: str = Field(default="INFO", env="LOG_LEVEL")
     LOG_FORMAT: str = Field(default="json", env="LOG_FORMAT")
     LOGS_DIR: str = Field(default="logs", env="LOGS_DIR")
+    ENHANCED_LOG_FORMAT: bool = Field(default=True, env="ENHANCED_LOG_FORMAT")
 
     # Server Configuration
     HOST: str = Field(default="0.0.0.0", env="HOST")
@@ -87,3 +88,7 @@ class Settings(BaseSettings):
 
 # Global settings instance
 settings = Settings()
+
+# Constants from main.py
+KONG_ADMIN_URL = settings.KONG_ADMIN_URL
+JWT_EXPIRATION_SECONDS = settings.JWT_EXPIRATION_SECONDS
