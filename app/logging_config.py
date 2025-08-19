@@ -77,6 +77,19 @@ class CustomJsonFormatter(jsonlogger.JsonFormatter):
         if hasattr(record, "tenant_id"):
             log_record["tenant_id"] = record.tenant_id
 
+        # Enhanced log format option
+        if getattr(settings, "ENHANCED_LOG_FORMAT", False):
+            # Add 'event' field if present in record
+            if hasattr(record, "event"):
+                log_record["event"] = record.event
+            # Ensure message is clear and descriptive
+            if "message" not in log_record or not log_record["message"]:
+                log_record["message"] = record.getMessage()
+            # Add traceback for errors if available
+            if record.levelno >= logging.ERROR and hasattr(record, "exc_info") and record.exc_info:
+                import traceback
+                log_record["traceback"] = "\n".join(traceback.format_exception(*record.exc_info))
+
 
 class RequestIdFilter(logging.Filter):
     """Filter to add request ID to log records"""
@@ -369,17 +382,20 @@ def log_request_start(request, logger: Optional[logging.Logger] = None) -> None:
         )
         client_ip = _get_client_ip(request)
 
+        extra = {
+            "request_id": request_id,
+            "method": request.method,
+            "path": request.url.path,
+            "client_ip": client_ip,
+            "user_agent": request.headers.get("user-agent", ""),
+            "query_params": dict(request.query_params),
+            "headers": dict(request.headers),
+        }
+        if getattr(settings, "ENHANCED_LOG_FORMAT", False):
+            extra["event"] = "request_start"
         logger.info(
             f"Request started: {request.method} {request.url.path}",
-            extra={
-                "request_id": request_id,
-                "method": request.method,
-                "path": request.url.path,
-                "client_ip": client_ip,
-                "user_agent": request.headers.get("user-agent", ""),
-                "query_params": dict(request.query_params),
-                "headers": dict(request.headers),
-            },
+            extra=extra,
         )
 
     except Exception as e:
@@ -409,18 +425,21 @@ def log_request_end(
         )
         duration_ms = round(duration * 1000, 2)
 
+        extra = {
+            "request_id": request_id,
+            "method": request.method,
+            "path": request.url.path,
+            "status_code": response.status_code,
+            "duration_ms": duration_ms,
+            "content_length": len(response.body)
+            if hasattr(response, "body")
+            else 0,
+        }
+        if getattr(settings, "ENHANCED_LOG_FORMAT", False):
+            extra["event"] = "request_end"
         logger.info(
             f"Request completed: {request.method} {request.url.path} {response.status_code}",
-            extra={
-                "request_id": request_id,
-                "method": request.method,
-                "path": request.url.path,
-                "status_code": response.status_code,
-                "duration_ms": duration_ms,
-                "content_length": len(response.body)
-                if hasattr(response, "body")
-                else 0,
-            },
+            extra=extra,
         )
 
     except Exception as e:
@@ -460,7 +479,8 @@ def log_error(
                     "client_ip": _get_client_ip(request),
                 }
             )
-
+        if getattr(settings, "ENHANCED_LOG_FORMAT", False):
+            extra["event"] = "error"
         logger.error(
             f"Error occurred: {type(error).__name__}: {str(error)}",
             extra=extra,
