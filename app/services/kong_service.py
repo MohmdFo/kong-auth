@@ -153,12 +153,12 @@ class KongConsumerService:
                 )
                 raise Exception("Failed to get existing consumer")
     
-    async def create_jwt_credentials(self, username: str, token_name: str) -> Tuple[Dict, str]:
+    async def create_jwt_credentials(self, username: str, token_name: str) -> Tuple[Dict, str, str]:
         """
         Create JWT credentials for a consumer.
         
         Returns:
-            Tuple of (jwt_credentials, secret)
+            Tuple of (jwt_credentials, secret, actual_token_name)
         """
         secret = secrets.token_urlsafe(32)
         secret_base64 = base64.b64encode(secret.encode()).decode()
@@ -187,9 +187,9 @@ class KongConsumerService:
                 ).observe(kong_duration)
                 
                 jwt_credentials = response.json()
-                logger.info(f"JWT credentials created for consumer: {username}")
+                logger.info(f"JWT credentials created for consumer: {username} with token_name: {token_name}")
                 
-                return jwt_credentials, secret
+                return jwt_credentials, secret, token_name
                 
             except httpx.HTTPStatusError as e:
                 KONG_API_CALLS_COUNT.labels(
@@ -198,6 +198,7 @@ class KongConsumerService:
                 
                 if e.response.status_code == 409:
                     # Handle duplicate token name
+                    logger.warning(f"Token name '{token_name}' already exists for consumer '{username}', handling duplicate...")
                     return await self._handle_duplicate_token_name(username, token_name, secret_base64)
                 else:
                     logger.error(f"Failed to create JWT credentials: {e.response.text}")
@@ -205,7 +206,7 @@ class KongConsumerService:
     
     async def _handle_duplicate_token_name(
         self, username: str, token_name: str, secret_base64: str
-    ) -> Tuple[Dict, str]:
+    ) -> Tuple[Dict, str, str]:
         """Handle JWT token name conflicts by generating a unique name."""
         logger.warning(
             f"JWT token name '{token_name}' already exists for consumer '{username}'. "
@@ -250,7 +251,7 @@ class KongConsumerService:
                 
                 # Decode the secret to return it
                 secret = base64.b64decode(secret_base64).decode()
-                return jwt_credentials, secret
+                return jwt_credentials, secret, unique_token_name
                 
             except httpx.HTTPStatusError as retry_error:
                 KONG_API_CALLS_COUNT.labels(
@@ -399,7 +400,8 @@ class JWTTokenService:
         
         token = jwt.encode(payload, secret, algorithm="HS256")
         
-        logger.info(f"JWT token generated for consumer: {username}, expires: {expiration}")
+        logger.info(f"JWT token generated for user: {username}, token_name: {token_name}, expires: {expiration}")
+        logger.debug(f"JWT payload: iss={username}, kid={token_name}")
         
         return token, expiration
     
