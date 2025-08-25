@@ -26,10 +26,11 @@ async def create_consumer(consumer_data: ConsumerRequest):
     
     try:
         result = await token_service.create_consumer_with_token(consumer_data.username)
+        logger.info(f"Consumer created successfully for username: {consumer_data.username}")
         return TokenResponse(**result)
     except Exception as e:
-        logger.error(f"Failed to create consumer: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error(f"Failed to create consumer for username: {consumer_data.username}, error: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to create consumer: {str(e)}")
 
 
 @router.get("/consumers")
