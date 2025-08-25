@@ -39,10 +39,10 @@ class TokenService:
         
         # Create JWT credentials
         token_name = username  # Use username as token name for backward compatibility
-        jwt_credentials, secret = await self.kong_service.create_jwt_credentials(username, token_name)
+        jwt_credentials, secret, actual_token_name = await self.kong_service.create_jwt_credentials(username, token_name)
         
         # Generate JWT token
-        jwt_token, expiration = self.jwt_service.generate_jwt_token(username, token_name, secret)
+        jwt_token, expiration = self.jwt_service.generate_jwt_token(username, actual_token_name, secret)
         
         # Track metrics
         JWT_TOKEN_GENERATED_COUNT.labels(username=username, token_type="consumer").inc()
@@ -59,28 +59,34 @@ class TokenService:
     
     async def generate_auto_token(self, username: str, token_name: str = None) -> dict:
         """Generate an automatic token for a user."""
+        original_token_name = token_name
         if not token_name:
             token_name = self.generate_default_token_name(username)
+        
+        logger.info(f"Generating auto token for user: {username}, requested_name: {original_token_name}, using_name: {token_name}")
         
         # Ensure consumer exists
         consumer, was_created = await self.kong_service.get_or_create_consumer(username)
         
         # Create JWT credentials
-        jwt_credentials, secret = await self.kong_service.create_jwt_credentials(username, token_name)
+        jwt_credentials, secret, actual_token_name = await self.kong_service.create_jwt_credentials(username, token_name)
+        
+        if actual_token_name != token_name:
+            logger.info(f"Token name changed from '{token_name}' to '{actual_token_name}' due to conflict")
         
         # Generate JWT token
-        jwt_token, expiration = self.jwt_service.generate_jwt_token(username, token_name, secret)
+        jwt_token, expiration = self.jwt_service.generate_jwt_token(username, actual_token_name, secret)
         
         # Track metrics
         JWT_TOKEN_GENERATED_COUNT.labels(username=username, token_type="auto").inc()
         ACTIVE_TOKENS_GAUGE.inc()
         
-        token_id = jwt_credentials.get("id", token_name)
+        token_id = jwt_credentials.get("id", actual_token_name)
         
         return {
             "token": jwt_token,
             "expires_at": expiration,
-            "token_name": token_name,
+            "token_name": actual_token_name,
             "token_id": token_id,
         }
     
@@ -92,24 +98,24 @@ class TokenService:
         consumer, consumer_created = await self.kong_service.get_or_create_consumer(username)
         
         # Create JWT credentials
-        jwt_credentials, secret = await self.kong_service.create_jwt_credentials(username, token_name)
+        jwt_credentials, secret, actual_token_name = await self.kong_service.create_jwt_credentials(username, token_name)
         
         # Generate JWT token
-        jwt_token, expiration = self.jwt_service.generate_jwt_token(username, token_name, secret)
+        jwt_token, expiration = self.jwt_service.generate_jwt_token(username, actual_token_name, secret)
         
         # Track metrics
         JWT_TOKEN_GENERATED_COUNT.labels(username=username, token_type="auto_generate").inc()
         ACTIVE_TOKENS_GAUGE.inc()
         
         consumer_uuid = self.get_consumer_uuid(username)
-        token_id = jwt_credentials.get("id", token_name)
+        token_id = jwt_credentials.get("id", actual_token_name)
         
         return {
             "username": username,
             "consumer_uuid": consumer_uuid,
             "token": jwt_token,
             "expires_at": expiration,
-            "token_name": token_name,
+            "token_name": actual_token_name,
             "token_id": token_id,
             "consumer_created": consumer_created,
         }
