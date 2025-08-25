@@ -26,13 +26,11 @@ logger = logging.getLogger(__name__)
 
 # Casdoor configuration
 CASDOOR_ENDPOINT = os.getenv("CASDOOR_ENDPOINT", "https://iam.ai-lab.ir")
-CASDOOR_CLIENT_ID = os.getenv("CASDOOR_CLIENT_ID", "f83fb202807419aee818")
-CASDOOR_CLIENT_SECRET = os.getenv(
-    "CASDOOR_CLIENT_SECRET", "33189aeb03ec21c7fe65ab0d9b00f4ba198bc640"
-)
-CASDOOR_ORG_NAME = os.getenv("CASDOOR_ORG_NAME", "built-in")
-CASDOOR_APP_NAME = os.getenv("CASDOOR_APP_NAME", "app-built-in")
-CASDOOR_CERT_PATH = os.getenv("CASDOOR_CERT_PATH", "casdoor_cert.pem")
+CASDOOR_CLIENT_ID = os.getenv("CASDOOR_CLIENT_ID")
+CASDOOR_CLIENT_SECRET = os.getenv("CASDOOR_CLIENT_SECRET")
+CASDOOR_ORG_NAME = os.getenv("CASDOOR_ORG_NAME")
+CASDOOR_APP_NAME = os.getenv("CASDOOR_APP_NAME")
+CASDOOR_CERT_PATH = os.getenv("CASDOOR_CERT_PATH")
 
 # Security scheme
 security = HTTPBearer()
