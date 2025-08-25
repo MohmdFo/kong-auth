@@ -36,15 +36,16 @@ async def generate_token_auto(
     if request and request.token_name:
         token_name = request.token_name
     
-    logger.info(f"Generating token for user: {username}")
+    logger.info(f"Generating token for user: {username}, custom_name: {token_name}")
     
     token_service = TokenService()
     
     try:
         result = await token_service.generate_auto_token(username, token_name)
+        logger.info(f"Token generated successfully for user: {username}, final_name: {result.get('token_name')}")
         return GenerateTokenResponse(**result)
     except Exception as e:
-        logger.error(f"Failed to generate token: {str(e)}")
+        logger.error(f"Failed to generate token for user: {username}, error: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
