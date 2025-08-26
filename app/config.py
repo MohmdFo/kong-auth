@@ -36,18 +36,12 @@ class Settings(BaseSettings):
     JWT_EXPIRATION_SECONDS: int = Field(default=31536000, env="JWT_EXPIRATION_SECONDS")
 
     # Casdoor Configuration
-    CASDOOR_ENDPOINT: str = Field(
-        default="https://iam.ai-lab.ir", env="CASDOOR_ENDPOINT"
-    )
-    CASDOOR_CLIENT_ID: str = Field(
-        default="f83fb202807419aee818", env="CASDOOR_CLIENT_ID"
-    )
-    CASDOOR_CLIENT_SECRET: str = Field(
-        default="33189aeb03ec21c7fe65ab0d9b00f4ba198bc640", env="CASDOOR_CLIENT_SECRET"
-    )
-    CASDOOR_ORG_NAME: str = Field(default="built-in", env="CASDOOR_ORG_NAME")
-    CASDOOR_APP_NAME: str = Field(default="app-built-in", env="CASDOOR_APP_NAME")
-    CASDOOR_CERT_PATH: str = Field(default="casdoor_cert.pem", env="CASDOOR_CERT_PATH")
+    CASDOOR_ENDPOINT: str = Field(env="CASDOOR_ENDPOINT")
+    CASDOOR_CLIENT_ID: str = Field(env="CASDOOR_CLIENT_ID")
+    CASDOOR_CLIENT_SECRET: str = Field(env="CASDOOR_CLIENT_SECRET")
+    CASDOOR_ORG_NAME: str = Field(env="CASDOOR_ORG_NAME")
+    CASDOOR_APP_NAME: str = Field(env="CASDOOR_APP_NAME")
+    CASDOOR_CERT_PATH: str = Field(env="CASDOOR_CERT_PATH")
 
     # Logging Configuration
     LOG_LEVEL: str = Field(default="INFO", env="LOG_LEVEL")
