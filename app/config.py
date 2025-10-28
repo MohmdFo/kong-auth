@@ -41,7 +41,7 @@ class Settings(BaseSettings):
     CASDOOR_CLIENT_SECRET: str = Field(env="CASDOOR_CLIENT_SECRET")
     CASDOOR_ORG_NAME: str = Field(env="CASDOOR_ORG_NAME")
     CASDOOR_APP_NAME: str = Field(env="CASDOOR_APP_NAME")
-    CASDOOR_CERT_PATH: str = Field(env="CASDOOR_CERT_PATH")
+    CASDOOR_CERT_PATH: Optional[str] = Field(default=None, env="CASDOOR_CERT_PATH")
 
     # Logging Configuration
     LOG_LEVEL: str = Field(default="INFO", env="LOG_LEVEL")

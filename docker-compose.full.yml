@@ -87,6 +87,8 @@ services:
     container_name: kong-auth
     ports:
       - "9002:8000"
+    env_file:
+      - .env
     environment:
       - HOST=0.0.0.0
       - RELOAD=true
