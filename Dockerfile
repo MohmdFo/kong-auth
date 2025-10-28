@@ -27,11 +27,14 @@ RUN poetry install --only main --no-root
 # Copy application code
 COPY . .
 
-# Create logs directory and set permissions
-RUN mkdir -p /app/logs && chmod 755 /app/logs
-
 # Create non-root user
-RUN useradd --create-home --shell /bin/bash app && chown -R app:app /app
+RUN useradd --create-home --shell /bin/bash app
+
+# Create logs directory and set permissions for app user
+RUN mkdir -p /app/logs && chown -R app:app /app/logs && chmod 755 /app/logs
+
+# Change ownership of entire app directory to app user
+RUN chown -R app:app /app
 USER app
 
 # Expose port
