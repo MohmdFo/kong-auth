@@ -98,6 +98,7 @@ services:
       - ENVIRONMENT=development
     volumes:
       - .:/app
+      - ./logs:/app/logs
     depends_on:
       - kong
     networks:
