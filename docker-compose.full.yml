@@ -86,7 +86,7 @@ services:
     build: .
     container_name: kong-auth
     ports:
-      - "9002:8000"
+      - "9002:8010"
     env_file:
       - .env
     environment:
