@@ -133,6 +133,19 @@ def setup_logging() -> None:
             print(f"Warning: Could not create logs directory {logs_dir}: {e}")
             # Fall back to console-only logging if directory creation fails
             logs_dir = None
+    
+    # Test if we can write to the logs directory
+    if logs_dir:
+        try:
+            test_file = os.path.join(logs_dir, "test_write.tmp")
+            with open(test_file, "w") as f:
+                f.write("test")
+            os.remove(test_file)
+            print(f"Logs directory {logs_dir} is writable")
+        except Exception as e:
+            print(f"Warning: Cannot write to logs directory {logs_dir}: {e}")
+            # Fall back to console-only logging if directory is not writable
+            logs_dir = None
 
     # Configure logging
     logging_config = {
@@ -227,6 +240,19 @@ def setup_logging() -> None:
             },
         },
     }
+
+    # If logs directory is not available, remove file handlers
+    if logs_dir is None:
+        # Remove file handlers from the configuration
+        handlers_to_remove = ["file", "error_file"]
+        for handler_name in handlers_to_remove:
+            if handler_name in logging_config["handlers"]:
+                del logging_config["handlers"][handler_name]
+        
+        # Update all loggers to use only console handler
+        for logger_name, logger_config in logging_config["loggers"].items():
+            if "handlers" in logger_config:
+                logger_config["handlers"] = ["console"]
 
     # Apply configuration
     logging.config.dictConfig(logging_config)
