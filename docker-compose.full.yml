@@ -52,7 +52,7 @@ services:
     ports:
       - "8007:8000"  # Proxy (using available port)
       - "8447:8443"  # Proxy SSL (using available port)
-      - "8008:8001"  # Admin API (using available port)
+      - "8009:8001"  # Admin API (using available port)
       - "8448:8444"  # Admin SSL (using available port)
     depends_on:
       - kong-migration
