@@ -9,12 +9,19 @@ import json
 import os
 import sys
 from typing import Any, Dict
+import pytest
 
 import httpx
 
 # Configuration
 API_BASE_URL = os.getenv("API_BASE_URL", "http://localhost:8000")
 KONG_ADMIN_URL = os.getenv("KONG_ADMIN_URL", "http://localhost:8006")
+
+# Skip entire module by default unless explicitly enabled
+pytestmark = pytest.mark.skipif(
+    os.getenv("ENABLE_INTEGRATION", "0") != "1",
+    reason="Integration tests disabled; set ENABLE_INTEGRATION=1 to run.",
+)
 
 
 class KongAPITester:

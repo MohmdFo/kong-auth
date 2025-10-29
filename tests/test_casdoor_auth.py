@@ -8,9 +8,17 @@ import json
 import sys
 
 import requests
+import os
+import pytest
 
 # Configuration
 BASE_URL = "http://localhost:8000"  # Adjust if your service runs on a different port
+
+# Skip by default unless explicitly enabled
+pytestmark = pytest.mark.skipif(
+    os.getenv("ENABLE_INTEGRATION", "0") != "1",
+    reason="Integration tests disabled; set ENABLE_INTEGRATION=1 to run.",
+)
 
 
 def test_without_auth():
