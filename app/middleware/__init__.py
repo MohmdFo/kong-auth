@@ -3,6 +3,7 @@ Middleware module for Kong Auth Service
 Provides request processing, authentication context, and observability middleware
 """
 
+from .cors import get_cors_origins, is_origin_allowed, setup_cors_middleware
 from .request_id import RequestIDMiddleware
 from .sentry import (
     SentryMiddleware,
@@ -27,4 +28,7 @@ __all__ = [
     "setup_sentry_middleware",
     "capture_request_error",
     "capture_request_message",
+    "setup_cors_middleware",
+    "get_cors_origins",
+    "is_origin_allowed",
 ]

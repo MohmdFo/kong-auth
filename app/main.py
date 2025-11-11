@@ -20,8 +20,8 @@ from .views import auth_router, consumer_router, token_router
 # Add metrics middleware
 from .metrics.middleware import metrics_middleware
 
-# Add Sentry middleware
-from .middleware.sentry import setup_sentry_middleware
+# Add middleware
+from .middleware import setup_cors_middleware, setup_sentry_middleware
 
 # Setup logging
 logger = logging.getLogger(__name__)
@@ -32,8 +32,32 @@ app = FastAPI(
     version="2.0.0",
 )
 
+
+@app.get("/health")
+async def health_check():
+    """Health check endpoint for CORS testing"""
+    return {
+        "status": "healthy",
+        "service": "kong-auth",
+        "cors_configured": True
+    }
+
+
+@app.get("/")
+async def root():
+    """Root endpoint"""
+    return {
+        "message": "Kong Auth Service",
+        "version": "2.0.0",
+        "docs": "/docs",
+        "cors_enabled": True
+    }
+
 # Initialize Sentry
 init_sentry()
+
+# Add CORS middleware
+setup_cors_middleware(app)
 
 # Include routers
 app.include_router(auth_router, tags=["authentication"])

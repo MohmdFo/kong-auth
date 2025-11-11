@@ -53,6 +53,21 @@ class Settings(BaseSettings):
     HOST: str = Field(default="0.0.0.0", env="HOST")
     PORT: int = Field(default=8000, env="PORT")
     RELOAD: bool = Field(default=False, env="RELOAD")
+    
+    # CORS Configuration
+    CORS_ORIGINS: list[str] = Field(
+        default=["http://localhost:3000", "http://localhost:8080", "http://localhost:5173"],
+        env="CORS_ORIGINS"
+    )
+    CORS_ALLOW_CREDENTIALS: bool = Field(default=True, env="CORS_ALLOW_CREDENTIALS")
+    CORS_ALLOW_METHODS: list[str] = Field(
+        default=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+        env="CORS_ALLOW_METHODS"
+    )
+    CORS_ALLOW_HEADERS: list[str] = Field(
+        default=["*"],
+        env="CORS_ALLOW_HEADERS"
+    )
 
     class Config:
         env_file = ".env"
